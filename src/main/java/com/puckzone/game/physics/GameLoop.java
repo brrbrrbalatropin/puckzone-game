@@ -1,8 +1,10 @@
 package com.puckzone.game.physics;
 
+import com.puckzone.game.bot.BotPaddle;
 import com.puckzone.game.config.GameProperties;
 import com.puckzone.game.room.GameRoomService;
 import com.puckzone.game.room.GameState;
+import com.puckzone.game.room.OpponentType;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -28,14 +30,16 @@ public class GameLoop {
 
     private final GameRoomService rooms;
     private final PhysicsEngine engine;
+    private final BotPaddle bot;
     private final SimpMessagingTemplate messaging;
     private final GameProperties props;
     private ScheduledExecutorService executor;
 
-    public GameLoop(GameRoomService rooms, PhysicsEngine engine,
+    public GameLoop(GameRoomService rooms, PhysicsEngine engine, BotPaddle bot,
                     SimpMessagingTemplate messaging, GameProperties props) {
         this.rooms = rooms;
         this.engine = engine;
+        this.bot = bot;
         this.messaging = messaging;
         this.props = props;
     }
@@ -62,6 +66,9 @@ public class GameLoop {
         double dt = 1.0 / props.tickRate();
         for (GameState game : rooms.activeGames()) {
             try {
+                if (game.getOpponentType() == OpponentType.BOT) {
+                    bot.act(game, dt);
+                }
                 var outcome = engine.tick(game, dt);
                 messaging.convertAndSend("/topic/game/" + game.getGameId(), game);
                 if (outcome != TickOutcome.NONE) {
