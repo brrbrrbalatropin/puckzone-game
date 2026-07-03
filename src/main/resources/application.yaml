@@ -1,3 +1,35 @@
+server:
+  port: 8083
+
 spring:
   application:
     name: puckzone-game
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+puckzone:
+  jwt:
+    secret: ${PUCKZONE_JWT_SECRET:puckzone-dev-secret-change-me-please-32bytes-min!!}
+
+  game:
+    board-width: 800
+    board-height: 500
+    goals-to-win: 7
+    tick-rate: 60          # ticks de física por segundo
+    goal-width: 200        # ancho de la portería, centrada en cada extremo
+    puck-radius: 15
+    paddle-radius: 30
+    max-puck-speed: 900    # px/s, tope para que el disco no se vuelva injugable
