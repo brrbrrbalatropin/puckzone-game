@@ -24,6 +24,9 @@ puckzone:
   jwt:
     secret: ${PUCKZONE_JWT_SECRET:puckzone-dev-secret-change-me-please-32bytes-min!!}
 
+  websocket:
+    allowed-origins: http://localhost:5173,http://localhost:8080
+
   game:
     board-width: 800
     board-height: 500
