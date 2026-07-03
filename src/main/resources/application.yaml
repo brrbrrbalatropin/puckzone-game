@@ -36,3 +36,4 @@ puckzone:
     puck-radius: 15
     paddle-radius: 30
     max-puck-speed: 900    # px/s, tope para que el disco no se vuelva injugable
+    serve-speed: 300       # px/s con los que sale el disco en cada saque

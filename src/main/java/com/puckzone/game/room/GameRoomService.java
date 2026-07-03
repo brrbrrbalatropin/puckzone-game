@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,6 +63,13 @@ public class GameRoomService {
 
     public Optional<GameState> find(String gameId) {
         return Optional.ofNullable(rooms.get(gameId));
+    }
+
+    /** Partidas que el game loop debe avanzar en el próximo tick. */
+    public List<GameState> activeGames() {
+        return rooms.values().stream()
+                .filter(state -> state.getStatus() == GameStatus.PLAYING)
+                .toList();
     }
 
     /**

@@ -18,6 +18,7 @@ public record GameProperties(
         @DefaultValue("200") int goalWidth,
         @DefaultValue("15") int puckRadius,
         @DefaultValue("30") int paddleRadius,
-        @DefaultValue("900") double maxPuckSpeed
+        @DefaultValue("900") double maxPuckSpeed,
+        @DefaultValue("300") double serveSpeed
 ) {
 }
