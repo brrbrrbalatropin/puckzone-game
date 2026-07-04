@@ -6,7 +6,7 @@ package com.puckzone.game.room;
  * {@link GameState}, no quién juega.
  */
 public record Player(
-        Long userId,
+        String userId,
         String username,
         String university
 ) {

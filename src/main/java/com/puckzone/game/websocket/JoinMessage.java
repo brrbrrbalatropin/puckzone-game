@@ -8,5 +8,5 @@ package com.puckzone.game.websocket;
  * valide en el handshake, la identidad saldrá del Principal de la sesión
  * STOMP y este campo desaparecerá.
  */
-public record JoinMessage(Long userId) {
+public record JoinMessage(String userId) {
 }

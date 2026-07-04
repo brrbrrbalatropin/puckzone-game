@@ -39,6 +39,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GameSocketIntegrationTest {
 
     private static final String GAME_ID = "partida-it";
+    private static final String PLAYER1_ID = "6f1f9c1e-8a4b-4b6e-9f0d-2f4f4b1a1111";
+    private static final String PLAYER2_ID = "0b7e3d2a-5c9f-4e8b-a1d3-7c6e5d4f2222";
 
     @LocalServerPort
     private int port;
@@ -53,8 +55,8 @@ class GameSocketIntegrationTest {
     @BeforeEach
     void connect() throws Exception {
         rooms.create(GAME_ID,
-                new Player(1L, "daniel", "escuelaing"),
-                new Player(2L, "rival", "unal"),
+                new Player(PLAYER1_ID, "daniel", "escuelaing"),
+                new Player(PLAYER2_ID, "rival", "unal"),
                 OpponentType.HUMAN);
 
         stompClient = new WebSocketStompClient(new StandardWebSocketClient());
@@ -88,12 +90,12 @@ class GameSocketIntegrationTest {
     @Test
     void partidaCompletaJugable() throws Exception {
         // Se une el jugador 1: la sala sigue esperando al 2
-        session.send("/app/game/" + GAME_ID + "/join", new JoinMessage(1L));
+        session.send("/app/game/" + GAME_ID + "/join", new JoinMessage(PLAYER1_ID));
         var waiting = awaitState(state -> true);
         assertEquals(GameStatus.WAITING, waiting.getStatus());
 
         // Se une el jugador 2: la partida arranca sola y el loop transmite
-        session.send("/app/game/" + GAME_ID + "/join", new JoinMessage(2L));
+        session.send("/app/game/" + GAME_ID + "/join", new JoinMessage(PLAYER2_ID));
         var playing = awaitState(state -> state.getStatus() == GameStatus.PLAYING);
         assertNotNull(playing, "la partida nunca pasó a PLAYING");
 
@@ -104,12 +106,12 @@ class GameSocketIntegrationTest {
         assertNotNull(after, "el disco no se movió entre broadcasts");
 
         // Input legítimo del jugador 1: la paleta queda donde el mouse
-        session.send("/app/game/" + GAME_ID + "/paddle", new PaddleMoveMessage(1L, 200, 100));
+        session.send("/app/game/" + GAME_ID + "/paddle", new PaddleMoveMessage(PLAYER1_ID, 200, 100));
         var moved = awaitState(state -> state.getPaddle1X() == 200 && state.getPaddle1Y() == 100);
         assertNotNull(moved, "el movimiento de paleta no se aplicó");
 
         // Input tramposo: el jugador 1 intenta meterse a la cancha rival
-        session.send("/app/game/" + GAME_ID + "/paddle", new PaddleMoveMessage(1L, 750, 250));
+        session.send("/app/game/" + GAME_ID + "/paddle", new PaddleMoveMessage(PLAYER1_ID, 750, 250));
         var clamped = awaitState(state -> state.getPaddle1X() == 370);
         assertNotNull(clamped, "el servidor no recortó la coordenada tramposa");
         assertTrue(clamped.getPaddle1X() <= 400, "la paleta invadió la mitad rival");

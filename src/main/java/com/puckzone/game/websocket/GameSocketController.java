@@ -61,7 +61,7 @@ public class GameSocketController {
         });
     }
 
-    private int playerNumber(GameState state, Long userId) {
+    private int playerNumber(GameState state, String userId) {
         if (state.getPlayer1().userId().equals(userId)) {
             return 1;
         }

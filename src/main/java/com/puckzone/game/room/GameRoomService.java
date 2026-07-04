@@ -77,7 +77,7 @@ public class GameRoomService {
      * humanos requeridos están dentro (solo player1 si es vs bot), la
      * partida pasa a PLAYING y el motor la toma en el siguiente tick.
      */
-    public Optional<GameState> playerConnected(String gameId, Long userId) {
+    public Optional<GameState> playerConnected(String gameId, String userId) {
         return find(gameId).map(state -> {
             if (state.getPlayer1().userId().equals(userId)) {
                 state.setPlayer1Connected(true);
