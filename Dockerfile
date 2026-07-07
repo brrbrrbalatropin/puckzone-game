@@ -5,7 +5,7 @@ WORKDIR /app
 # Primero solo el descriptor y el wrapper para cachear las dependencias
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
-RUN ./mvnw dependency:go-offline -B --no-transfer-progress
+RUN chmod +x mvnw && ./mvnw dependency:go-offline -B --no-transfer-progress
 
 COPY src ./src
 RUN ./mvnw package -DskipTests -B --no-transfer-progress
