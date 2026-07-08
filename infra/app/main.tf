@@ -44,10 +44,13 @@ resource "azurerm_container_app" "game" {
   }
 
   # Interno: solo el gateway (en el mismo environment) le habla; nada de internet.
+  # allow_insecure permite trafico HTTP plano entre apps del environment (el
+  # redirect a HTTPS rompe las llamadas: cert de .internal. no confiable en Java).
   ingress {
-    external_enabled = false
-    target_port      = 8083
-    transport        = "auto"
+    external_enabled           = false
+    target_port                = 8083
+    transport                  = "auto"
+    allow_insecure_connections = true
 
     traffic_weight {
       latest_revision = true
