@@ -104,6 +104,27 @@ class PhysicsEngineTest {
     }
 
     @Test
+    void elEmpujonDeLaPaletaEnLaEsquinaNoSacaElDiscoDelTablero() {
+        var state = playing();
+        // Caso real: el bot incrustado en la esquina superior derecha empujaba
+        // el disco fuera del tablero y quedaba "desaparecido" en un bucle
+        // pared-paleta. El disco debe quedar confinado y salir hacia adentro.
+        state.setPaddle2X(770);
+        state.setPaddle2Y(30);
+        state.setPuckX(788);
+        state.setPuckY(14);
+        state.setPuckVx(10);
+        state.setPuckVy(0);
+
+        engine.tick(state, 1.0 / 60);
+
+        assertTrue(state.getPuckX() >= 15 && state.getPuckX() <= 785, "x fuera del tablero");
+        assertTrue(state.getPuckY() >= 15 && state.getPuckY() <= 485, "y fuera del tablero");
+        assertTrue(state.getPuckVx() < 0, "vx debe apuntar hacia adentro");
+        assertTrue(state.getPuckVy() > 0, "vy debe apuntar hacia adentro");
+    }
+
+    @Test
     void laPaletaSeRecortaASuMitadDeCancha() {
         var state = playing();
 

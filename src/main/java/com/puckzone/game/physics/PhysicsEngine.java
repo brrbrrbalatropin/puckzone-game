@@ -163,6 +163,33 @@ public class PhysicsEngine {
         double newSpeed = Math.min(Math.max(speed, MIN_HIT_SPEED) + HIT_BOOST, props.maxPuckSpeed());
         state.setPuckVx(nx * newSpeed);
         state.setPuckVy(ny * newSpeed);
+        keepPuckInsideBoard(state);
+    }
+
+    /**
+     * El empujón de la colisión puede dejar el disco fuera del tablero si la
+     * paleta está pegada a una pared o esquina: el disco "desaparecía" y
+     * quedaba atrapado en un bucle pared-paleta mientras la paleta no se
+     * moviera. Se confina al tablero y la velocidad del eje recortado se
+     * orienta hacia adentro para que el disco salga de la trampa. También
+     * evita que una paleta meta el disco a la portería empujándolo.
+     */
+    private void keepPuckInsideBoard(GameState state) {
+        double r = props.puckRadius();
+        if (state.getPuckX() < r) {
+            state.setPuckX(r);
+            state.setPuckVx(Math.abs(state.getPuckVx()));
+        } else if (state.getPuckX() > props.boardWidth() - r) {
+            state.setPuckX(props.boardWidth() - r);
+            state.setPuckVx(-Math.abs(state.getPuckVx()));
+        }
+        if (state.getPuckY() < r) {
+            state.setPuckY(r);
+            state.setPuckVy(Math.abs(state.getPuckVy()));
+        } else if (state.getPuckY() > props.boardHeight() - r) {
+            state.setPuckY(props.boardHeight() - r);
+            state.setPuckVy(-Math.abs(state.getPuckVy()));
+        }
     }
 
     private void capSpeed(GameState state) {
