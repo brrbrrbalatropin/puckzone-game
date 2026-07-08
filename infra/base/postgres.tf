@@ -8,8 +8,10 @@ resource "random_password" "postgres" {
 }
 
 resource "azurerm_postgresql_flexible_server" "main" {
-  name                = "${var.project}-pg"
-  location            = azurerm_resource_group.main.location
+  # La region va en el nombre porque ARM tombstonea nombre+region en intentos
+  # fallidos (paso con eastus y eastus2, restringidas para Azure for Students).
+  name                = "${var.project}-postgres-${var.postgres_location}"
+  location            = var.postgres_location
   resource_group_name = azurerm_resource_group.main.name
 
   version                      = "17"

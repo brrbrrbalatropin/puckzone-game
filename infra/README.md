@@ -58,6 +58,10 @@ Orden: `base` primero; los `app` de cada servicio despues (dependen de sus outpu
 
 - **1 Postgres Flexible Server B1ms** con una database por servicio, en vez de un
   servidor por servicio: aislamiento logico suficiente y ~1/3 del costo.
+- **Postgres en `centralus`** (el resto en `eastus`): Azure for Students tiene
+  `LocationIsOfferRestricted` en eastus/eastus2 para Flexible Server. Sondear regiones
+  con `az postgres flexible-server list-skus --location <region>`. Ojo: un intento
+  fallido tombstonea nombre+region en ARM (~horas), por eso el nombre lleva la region.
 - **Redis como Container App** interna (TCP 6379, sin ingress externo) en vez de
   Azure Cache for Redis: game solo guarda snapshots con TTL 1h, no necesita
   durabilidad. Sin contrasena porque solo es alcanzable dentro del environment.

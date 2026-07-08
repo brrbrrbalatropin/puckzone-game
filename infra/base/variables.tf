@@ -18,6 +18,15 @@ variable "project" {
   default     = "puckzone"
 }
 
+# Azure for Students tiene bloqueado Postgres Flexible Server en varias regiones
+# (LocationIsOfferRestricted en eastus y eastus2, verificado 2026-07-07). Sondear
+# disponibilidad con: az postgres flexible-server list-skus --location <region>
+variable "postgres_location" {
+  description = "Region para el Postgres Flexible Server (restriccion de la suscripcion de estudiante)"
+  type        = string
+  default     = "centralus"
+}
+
 variable "postgres_admin_login" {
   description = "Usuario administrador del Postgres Flexible Server"
   type        = string
