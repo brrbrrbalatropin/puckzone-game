@@ -27,7 +27,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns(properties.allowedOrigins().toArray(String[]::new))
-                .withSockJS();
+                .withSockJS()
+                // El CORS del sistema es responsabilidad exclusiva del gateway.
+                // Sin esto, SockJS agrega sus propios headers CORS en /ws/info
+                // y el navegador rechaza la respuesta por venir duplicados.
+                .setSuppressCors(true);
     }
 
     @Override
