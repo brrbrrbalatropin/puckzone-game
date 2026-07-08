@@ -36,6 +36,12 @@ output "postgres_admin_password" {
   sensitive = true
 }
 
+output "jwt_secret" {
+  description = "PUCKZONE_JWT_SECRET de produccion; auth firma y el resto valida con el"
+  value       = random_password.jwt_secret.result
+  sensitive   = true
+}
+
 output "application_insights_connection_string" {
   value     = azurerm_application_insights.main.connection_string
   sensitive = true

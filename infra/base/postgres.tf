@@ -24,6 +24,10 @@ resource "azurerm_postgresql_flexible_server" "main" {
 
   # Sin VNet: acceso publico restringido por firewall (regla abajo).
   public_network_access_enabled = true
+
+  # Azure asigno la zona 3 al crear el servidor; se fija aqui para que
+  # terraform no intente moverlo (drift detectado 2026-07-07).
+  zone = "3"
 }
 
 # 0.0.0.0-0.0.0.0 es la regla especial "permitir servicios de Azure":
