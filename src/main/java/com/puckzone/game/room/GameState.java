@@ -43,6 +43,9 @@ public class GameState {
     private boolean player1Connected;
     private boolean player2Connected;
 
+    /** Epoch ms del arranque (paso a PLAYING); para la duración del reporte a ranking. */
+    private long startedAtEpochMs;
+
     /** ¿Están conectados todos los humanos que la partida necesita? */
     public boolean allPlayersConnected() {
         return player1Connected && (opponentType == OpponentType.BOT || player2Connected);

@@ -1,6 +1,7 @@
 package com.puckzone.game.physics;
 
 import com.puckzone.game.bot.BotPaddle;
+import com.puckzone.game.client.RankingClient;
 import com.puckzone.game.config.GameProperties;
 import com.puckzone.game.room.GameRoomService;
 import com.puckzone.game.room.GameState;
@@ -33,15 +34,18 @@ public class GameLoop {
     private final BotPaddle bot;
     private final SimpMessagingTemplate messaging;
     private final GameProperties props;
+    private final RankingClient rankingClient;
     private ScheduledExecutorService executor;
 
     public GameLoop(GameRoomService rooms, PhysicsEngine engine, BotPaddle bot,
-                    SimpMessagingTemplate messaging, GameProperties props) {
+                    SimpMessagingTemplate messaging, GameProperties props,
+                    RankingClient rankingClient) {
         this.rooms = rooms;
         this.engine = engine;
         this.bot = bot;
         this.messaging = messaging;
         this.props = props;
+        this.rankingClient = rankingClient;
     }
 
     @PostConstruct
@@ -77,6 +81,9 @@ public class GameLoop {
                 if (outcome == TickOutcome.FINISHED) {
                     log.info("Partida {} terminada {} - {}", game.getGameId(),
                             game.getScore1(), game.getScore2());
+                    // En un virtual thread: el loop es UN hilo para todas las
+                    // partidas y una llamada HTTP lenta congelaría los ticks.
+                    Thread.startVirtualThread(() -> rankingClient.reportFinished(game));
                 }
             } catch (RuntimeException e) {
                 log.error("Tick falló en la partida {}: {}", game.getGameId(), e.getMessage());

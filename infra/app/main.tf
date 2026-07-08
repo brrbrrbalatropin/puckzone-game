@@ -29,6 +29,11 @@ resource "azurerm_container_app" "game" {
         name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         value = data.terraform_remote_state.base.outputs.application_insights_connection_string
       }
+      # Reporte de resultados a ranking por el HTTP plano interno del environment.
+      env {
+        name  = "RANKING_BASE_URL"
+        value = "http://puckzone-ranking"
+      }
       # Origenes permitidos en el handshake SockJS (el Origin del navegador
       # llega intacto a traves del proxy del gateway). Sin esto, game solo
       # acepta los localhost del application.yaml y rechaza al frontend

@@ -89,6 +89,7 @@ public class GameRoomService {
             }
             if (state.getStatus() == GameStatus.WAITING && state.allPlayersConnected()) {
                 state.setStatus(GameStatus.PLAYING);
+                state.setStartedAtEpochMs(System.currentTimeMillis());
                 log.info("Sala {} completa: la partida arranca", gameId);
             }
             snapshot(state);

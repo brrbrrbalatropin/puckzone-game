@@ -24,6 +24,10 @@ puckzone:
   jwt:
     secret: ${PUCKZONE_JWT_SECRET:puckzone-dev-secret-change-me-please-32bytes-min!!}
 
+  # Reporte de resultados al terminar cada partida (game -> ranking).
+  ranking-report:
+    base-url: ${RANKING_BASE_URL:http://localhost:8084}
+
   websocket:
     allowed-origins: http://localhost:5173,http://localhost:8080
 
