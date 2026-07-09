@@ -10,6 +10,10 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * Entrada STOMP de los jugadores. Los clientes solo envían inputs por
  * {@code /app/**}; el estado siempre viaja de vuelta por
@@ -20,9 +24,17 @@ public class GameSocketController {
 
     private static final Logger log = LoggerFactory.getLogger(GameSocketController.class);
 
+    /** Ids de emote permitidos; el frontend los traduce a su emoji. */
+    private static final Set<String> ALLOWED_EMOTES =
+            Set.of("THUMBS_UP", "LAUGH", "WOW", "CRY", "ANGRY", "GG");
+    /** Anti-spam: mínimo entre emotes del mismo jugador. */
+    private static final long EMOTE_COOLDOWN_MS = 1000;
+
     private final GameRoomService rooms;
     private final PhysicsEngine engine;
     private final SimpMessagingTemplate messaging;
+    /** Último emote por sala+jugador. Vive lo que viva la instancia, como las salas. */
+    private final Map<String, Long> lastEmoteAt = new ConcurrentHashMap<>();
 
     public GameSocketController(GameRoomService rooms, PhysicsEngine engine,
                                 SimpMessagingTemplate messaging) {
@@ -58,6 +70,41 @@ public class GameSocketController {
                 return;
             }
             engine.movePaddle(state, player, message.x(), message.y());
+        });
+    }
+
+    /**
+     * Emote hacia el rival. Solo ids de la lista blanca, solo jugadores de la
+     * sala y con cooldown por jugador (anti-spam). Se retransmite por un topic
+     * aparte para no ensuciar el stream de estados a 60Hz.
+     */
+    @MessageMapping("/game/{gameId}/emote")
+    public void emote(@DestinationVariable String gameId, EmoteMessage message) {
+        if (!ALLOWED_EMOTES.contains(message.emote())) {
+            return;
+        }
+        rooms.find(gameId).ifPresent(state -> {
+            if (playerNumber(state, message.userId()) == 0) {
+                log.warn("Usuario {} intentó mandar emote en la sala ajena {}", message.userId(), gameId);
+                return;
+            }
+            // compute es atómico por clave: sin esto, dos emotes seguidos se
+            // procesan en hilos distintos del broker y ambos pasan el chequeo.
+            String key = gameId + ":" + message.userId();
+            long now = System.currentTimeMillis();
+            boolean[] allowed = {false};
+            lastEmoteAt.compute(key, (k, last) -> {
+                if (last != null && now - last < EMOTE_COOLDOWN_MS) {
+                    return last;
+                }
+                allowed[0] = true;
+                return now;
+            });
+            if (!allowed[0]) {
+                return;
+            }
+            messaging.convertAndSend("/topic/game/" + gameId + "/emotes",
+                    new EmoteBroadcast(message.userId(), message.emote()));
         });
     }
 
