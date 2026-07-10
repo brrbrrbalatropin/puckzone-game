@@ -46,6 +46,13 @@ public class GameState {
     /** Epoch ms del arranque (paso a PLAYING); para la duración del reporte a ranking. */
     private long startedAtEpochMs;
 
+    /**
+     * Epoch ms hasta el que se espera la reconexión del jugador caído
+     * (solo con status PAUSED). El frontend puede pintar la cuenta
+     * regresiva con esto; quién falta se ve en los flags de conexión.
+     */
+    private long graceDeadlineEpochMs;
+
     /** ¿Están conectados todos los humanos que la partida necesita? */
     public boolean allPlayersConnected() {
         return player1Connected && (opponentType == OpponentType.BOT || player2Connected);

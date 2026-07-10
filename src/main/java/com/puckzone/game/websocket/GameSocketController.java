@@ -6,7 +6,9 @@ import com.puckzone.game.room.GameState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
@@ -48,13 +50,16 @@ public class GameSocketController {
 
     /**
      * El jugador anuncia que está listo. Cuando todos los requeridos se
-     * han unido, la sala pasa a PLAYING y el loop la toma. Se publica el
-     * estado de inmediato para que el recién llegado pinte el tablero sin
-     * esperar a que la partida arranque.
+     * han unido, la sala pasa a PLAYING y el loop la toma (o se reanuda si
+     * estaba PAUSED por una desconexión: reconectarse es volver a hacer
+     * join). Se publica el estado de inmediato para que el recién llegado
+     * pinte el tablero sin esperar a que la partida arranque. El id de
+     * sesión se registra para distinguir la conexión vigente del jugador.
      */
     @MessageMapping("/game/{gameId}/join")
-    public void join(@DestinationVariable String gameId, Principal principal) {
-        rooms.playerConnected(gameId, principal.getName()).ifPresentOrElse(
+    public void join(@DestinationVariable String gameId, Principal principal,
+                     @Header(SimpMessageHeaderAccessor.SESSION_ID_HEADER) String sessionId) {
+        rooms.playerConnected(gameId, principal.getName(), sessionId).ifPresentOrElse(
                 state -> messaging.convertAndSend("/topic/game/" + gameId, state),
                 () -> log.warn("Join a la sala inexistente {}", gameId));
     }

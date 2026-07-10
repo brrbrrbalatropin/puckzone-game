@@ -124,6 +124,31 @@ class GameSocketIntegrationTest {
     }
 
     @Test
+    void partidaSePausaAlCaerseUnJugadorYSeReanudaAlVolver() throws Exception {
+        session1 = connectAs(PLAYER1_ID, "daniel");
+        session2 = connectAs(PLAYER2_ID, "rival");
+        subscribeToGame(session1);
+        join(session1);
+        join(session2);
+        assertNotNull(awaitState(state -> state.getStatus() == GameStatus.PLAYING));
+
+        // El jugador 2 cierra la pestaña: la partida se pausa con ventana de gracia
+        session2.disconnect();
+        var paused = awaitState(state -> state.getStatus() == GameStatus.PAUSED);
+        assertNotNull(paused, "la partida no se pausó al caerse el jugador 2");
+        assertTrue(!paused.isPlayer2Connected(), "el jugador caído sigue figurando conectado");
+        assertTrue(paused.getGraceDeadlineEpochMs() > System.currentTimeMillis(),
+                "la pausa no dejó ventana de gracia hacia el futuro");
+
+        // Vuelve dentro de la ventana (reconectar = volver a hacer join): se reanuda
+        session2 = connectAs(PLAYER2_ID, "rival");
+        join(session2);
+        var resumed = awaitState(state -> state.getStatus() == GameStatus.PLAYING);
+        assertNotNull(resumed, "la partida no se reanudó con la reconexión");
+        assertEquals(0, resumed.getGraceDeadlineEpochMs(), "la reanudación no limpió la ventana de gracia");
+    }
+
+    @Test
     void handshakeSinTokenRechazado() {
         assertThrows(ExecutionException.class, () ->
                 stompClient.connectAsync("ws://localhost:" + port + "/ws/websocket",

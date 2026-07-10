@@ -5,10 +5,14 @@ package com.puckzone.game.room;
  * WAITING:  sala creada por matchmaking; faltan jugadores por conectarse
  *           al WebSocket.
  * PLAYING:  todos conectados; el motor de física está corriendo.
- * FINISHED: un jugador alcanzó los goles de victoria.
+ * PAUSED:   un jugador se desconectó a mitad de partida; la física queda
+ *           congelada mientras corre la ventana de gracia para reconectarse.
+ * FINISHED: un jugador alcanzó los goles de victoria, o la partida terminó
+ *           por abandono o rendición.
  */
 public enum GameStatus {
     WAITING,
     PLAYING,
+    PAUSED,
     FINISHED
 }

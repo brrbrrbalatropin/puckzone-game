@@ -25,6 +25,12 @@ public class GameRoomService {
     private static final Logger log = LoggerFactory.getLogger(GameRoomService.class);
 
     private final Map<String, GameState> rooms = new ConcurrentHashMap<>();
+    /**
+     * Sesión WS vigente de cada jugador (userId → sessionId del último join).
+     * Permite ignorar el disconnect de una sesión vieja: si el jugador abrió
+     * otra pestaña y se unió desde ella, cerrar la primera no pausa nada.
+     */
+    private final Map<String, String> sessionsByUser = new ConcurrentHashMap<>();
     private final GameProperties properties;
     private final GameStateRepository repository;
 
@@ -73,11 +79,13 @@ public class GameRoomService {
     }
 
     /**
-     * Marca al jugador como conectado al WebSocket. Cuando todos los
-     * humanos requeridos están dentro (solo player1 si es vs bot), la
-     * partida pasa a PLAYING y el motor la toma en el siguiente tick.
+     * Marca al jugador como conectado al WebSocket y recuerda su sesión
+     * vigente. Cuando todos los humanos requeridos están dentro (solo
+     * player1 si es vs bot), la partida pasa a PLAYING y el motor la toma
+     * en el siguiente tick; si estaba PAUSED por una desconexión, se
+     * reanuda donde quedó (el reloj de la partida no se reinicia).
      */
-    public Optional<GameState> playerConnected(String gameId, String userId) {
+    public Optional<GameState> playerConnected(String gameId, String userId, String sessionId) {
         return find(gameId).map(state -> {
             if (state.getPlayer1().userId().equals(userId)) {
                 state.setPlayer1Connected(true);
@@ -87,14 +95,60 @@ public class GameRoomService {
                 log.warn("Usuario {} no pertenece a la sala {}", userId, gameId);
                 return state;
             }
+            sessionsByUser.put(userId, sessionId);
             if (state.getStatus() == GameStatus.WAITING && state.allPlayersConnected()) {
                 state.setStatus(GameStatus.PLAYING);
                 state.setStartedAtEpochMs(System.currentTimeMillis());
                 log.info("Sala {} completa: la partida arranca", gameId);
+            } else if (state.getStatus() == GameStatus.PAUSED && state.allPlayersConnected()) {
+                state.setStatus(GameStatus.PLAYING);
+                state.setGraceDeadlineEpochMs(0);
+                log.info("Sala {} reanudada: {} se reconectó a tiempo", gameId, userId);
             }
             snapshot(state);
             return state;
         });
+    }
+
+    /**
+     * Reacción a la caída del WebSocket de un jugador. Solo actúa si la
+     * sesión caída es la vigente (un disconnect de una pestaña vieja no
+     * cuenta). Marca al jugador como desconectado en su sala viva y, si la
+     * partida estaba corriendo, la pausa y arranca la ventana de gracia;
+     * el que la ventana expire sin reconexión lo decide el game loop.
+     * Devuelve la sala afectada para que quien escucha retransmita el
+     * estado (con la sala PAUSED el loop deja de emitir).
+     */
+    public Optional<GameState> playerDisconnected(String userId, String sessionId) {
+        if (!sessionsByUser.remove(userId, sessionId)) {
+            return Optional.empty();
+        }
+        return rooms.values().stream()
+                .filter(state -> state.getStatus() != GameStatus.FINISHED)
+                .filter(state -> isPlayer(state, userId))
+                .findFirst()
+                .map(state -> {
+                    if (state.getPlayer1().userId().equals(userId)) {
+                        state.setPlayer1Connected(false);
+                    } else {
+                        state.setPlayer2Connected(false);
+                    }
+                    if (state.getStatus() == GameStatus.PLAYING) {
+                        state.setStatus(GameStatus.PAUSED);
+                        state.setGraceDeadlineEpochMs(System.currentTimeMillis()
+                                + properties.disconnectGraceSeconds() * 1000L);
+                        log.info("Sala {} pausada: {} se desconectó ({}s de gracia)",
+                                state.getGameId(), userId, properties.disconnectGraceSeconds());
+                    }
+                    snapshot(state);
+                    return state;
+                });
+    }
+
+    /** ¿El usuario juega en esta sala? */
+    private boolean isPlayer(GameState state, String userId) {
+        return state.getPlayer1().userId().equals(userId)
+                || (state.getPlayer2() != null && state.getPlayer2().userId().equals(userId));
     }
 
     /** Foto a Redis, best-effort: si Redis no está, el juego sigue. */
