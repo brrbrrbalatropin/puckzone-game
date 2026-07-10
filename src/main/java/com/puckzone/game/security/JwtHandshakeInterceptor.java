@@ -1,9 +1,5 @@
 package com.puckzone.game.security;
 
-import com.puckzone.game.config.JwtProperties;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,8 +9,6 @@ import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -24,8 +18,7 @@ import java.util.Map;
  * intacto). Sin token válido el handshake muere con 401 y la conexión
  * nunca se abre; con token válido el userId ({@code sub}) queda en los
  * atributos de la sesión para que {@link JwtHandshakeHandler} arme el
- * Principal. Validación local con el secreto compartido, sin fijar el
- * algoritmo (auth firma HS384 en dev y HS512 en prod).
+ * Principal. La validación en sí la hace {@link JwtTokenParser}.
  */
 public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
@@ -33,10 +26,10 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(JwtHandshakeInterceptor.class);
 
-    private final SecretKey key;
+    private final JwtTokenParser tokenParser;
 
-    public JwtHandshakeInterceptor(JwtProperties properties) {
-        this.key = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
+    public JwtHandshakeInterceptor(JwtTokenParser tokenParser) {
+        this.tokenParser = tokenParser;
     }
 
     @Override
@@ -44,25 +37,16 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
                                    WebSocketHandler wsHandler, Map<String, Object> attributes) {
         String token = UriComponentsBuilder.fromUri(request.getURI())
                 .build().getQueryParams().getFirst("token");
-        if (token == null || token.isBlank()) {
-            log.warn("Handshake WS sin token rechazado: {}", request.getURI().getPath());
-            response.setStatusCode(HttpStatus.UNAUTHORIZED);
-            return false;
-        }
-        try {
-            String userId = Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload()
-                    .getSubject();
-            attributes.put(USER_ID_ATTRIBUTE, userId);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            log.warn("Handshake WS con token inválido rechazado: {}", e.getMessage());
-            response.setStatusCode(HttpStatus.UNAUTHORIZED);
-            return false;
-        }
+        return tokenParser.userIdFrom(token)
+                .map(userId -> {
+                    attributes.put(USER_ID_ATTRIBUTE, userId);
+                    return true;
+                })
+                .orElseGet(() -> {
+                    log.warn("Handshake WS sin token válido rechazado: {}", request.getURI().getPath());
+                    response.setStatusCode(HttpStatus.UNAUTHORIZED);
+                    return false;
+                });
     }
 
     @Override

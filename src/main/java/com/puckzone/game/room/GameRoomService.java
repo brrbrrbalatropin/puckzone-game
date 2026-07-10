@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,6 +84,18 @@ public class GameRoomService {
         return rooms.values().stream()
                 .filter(state -> state.getStatus() == GameStatus.PAUSED)
                 .toList();
+    }
+
+    /**
+     * Partida viva del usuario, para que el lobby le ofrezca volver. Si
+     * hubiera más de una (no debería: matchmaking empareja de a una), gana
+     * la que ya arrancó sobre una WAITING huérfana.
+     */
+    public Optional<GameState> activeGameOf(String userId) {
+        return rooms.values().stream()
+                .filter(state -> state.getStatus() != GameStatus.FINISHED)
+                .filter(state -> isPlayer(state, userId))
+                .max(Comparator.comparingLong(GameState::getStartedAtEpochMs));
     }
 
     /**
