@@ -1,8 +1,8 @@
 package com.puckzone.game.physics;
 
 import com.puckzone.game.bot.BotPaddle;
-import com.puckzone.game.client.RankingClient;
 import com.puckzone.game.config.GameProperties;
+import com.puckzone.game.room.GameEndService;
 import com.puckzone.game.room.GameRoomService;
 import com.puckzone.game.room.GameState;
 import com.puckzone.game.room.OpponentType;
@@ -34,18 +34,18 @@ public class GameLoop {
     private final BotPaddle bot;
     private final SimpMessagingTemplate messaging;
     private final GameProperties props;
-    private final RankingClient rankingClient;
+    private final GameEndService gameEnd;
     private ScheduledExecutorService executor;
 
     public GameLoop(GameRoomService rooms, PhysicsEngine engine, BotPaddle bot,
                     SimpMessagingTemplate messaging, GameProperties props,
-                    RankingClient rankingClient) {
+                    GameEndService gameEnd) {
         this.rooms = rooms;
         this.engine = engine;
         this.bot = bot;
         this.messaging = messaging;
         this.props = props;
-        this.rankingClient = rankingClient;
+        this.gameEnd = gameEnd;
     }
 
     @PostConstruct
@@ -81,12 +81,30 @@ public class GameLoop {
                 if (outcome == TickOutcome.FINISHED) {
                     log.info("Partida {} terminada {} - {}", game.getGameId(),
                             game.getScore1(), game.getScore2());
-                    // En un virtual thread: el loop es UN hilo para todas las
-                    // partidas y una llamada HTTP lenta congelaría los ticks.
-                    Thread.startVirtualThread(() -> rankingClient.reportFinished(game));
+                    gameEnd.reportAsync(game);
                 }
             } catch (RuntimeException e) {
                 log.error("Tick falló en la partida {}: {}", game.getGameId(), e.getMessage());
+            }
+        }
+        closeExpiredPauses();
+    }
+
+    /**
+     * Las salas PAUSED no tican, pero su ventana de gracia sí corre: si el
+     * jugador caído no volvió a tiempo, la partida se cierra por abandono
+     * a favor del que se quedó esperando.
+     */
+    private void closeExpiredPauses() {
+        long now = System.currentTimeMillis();
+        for (GameState game : rooms.pausedGames()) {
+            if (game.getGraceDeadlineEpochMs() > 0 && now >= game.getGraceDeadlineEpochMs()) {
+                try {
+                    gameEnd.finishByGraceExpiry(game);
+                } catch (RuntimeException e) {
+                    log.error("Cierre por abandono falló en la partida {}: {}",
+                            game.getGameId(), e.getMessage());
+                }
             }
         }
     }

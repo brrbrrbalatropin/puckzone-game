@@ -1,8 +1,10 @@
 package com.puckzone.game.websocket;
 
 import com.puckzone.game.physics.PhysicsEngine;
+import com.puckzone.game.room.GameEndService;
 import com.puckzone.game.room.GameRoomService;
 import com.puckzone.game.room.GameState;
+import com.puckzone.game.room.GameStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -36,14 +38,16 @@ public class GameSocketController {
     private static final long EMOTE_COOLDOWN_MS = 1000;
 
     private final GameRoomService rooms;
+    private final GameEndService gameEnd;
     private final PhysicsEngine engine;
     private final SimpMessagingTemplate messaging;
     /** Último emote por sala+jugador. Vive lo que viva la instancia, como las salas. */
     private final Map<String, Long> lastEmoteAt = new ConcurrentHashMap<>();
 
-    public GameSocketController(GameRoomService rooms, PhysicsEngine engine,
-                                SimpMessagingTemplate messaging) {
+    public GameSocketController(GameRoomService rooms, GameEndService gameEnd,
+                                PhysicsEngine engine, SimpMessagingTemplate messaging) {
         this.rooms = rooms;
+        this.gameEnd = gameEnd;
         this.engine = engine;
         this.messaging = messaging;
     }
@@ -79,6 +83,26 @@ public class GameSocketController {
                 return;
             }
             engine.movePaddle(state, player, message.x(), message.y());
+        });
+    }
+
+    /**
+     * Rendición, ya confirmada por el cliente (el "¿estás seguro?" es del
+     * frontend). Termina la partida a favor del rival de inmediato. Vale
+     * con la partida corriendo o pausada — quien espera a un desconectado
+     * puede rendirse en vez de aguantar la ventana de gracia completa.
+     */
+    @MessageMapping("/game/{gameId}/surrender")
+    public void surrender(@DestinationVariable String gameId, Principal principal) {
+        rooms.find(gameId).ifPresent(state -> {
+            if (playerNumber(state, principal.getName()) == 0) {
+                log.warn("Usuario {} intentó rendirse en la sala ajena {}", principal.getName(), gameId);
+                return;
+            }
+            if (state.getStatus() != GameStatus.PLAYING && state.getStatus() != GameStatus.PAUSED) {
+                return;
+            }
+            gameEnd.finishBySurrender(state, principal.getName());
         });
     }
 

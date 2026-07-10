@@ -78,6 +78,13 @@ public class GameRoomService {
                 .toList();
     }
 
+    /** Partidas pausadas, para que el loop vigile sus ventanas de gracia. */
+    public List<GameState> pausedGames() {
+        return rooms.values().stream()
+                .filter(state -> state.getStatus() == GameStatus.PAUSED)
+                .toList();
+    }
+
     /**
      * Marca al jugador como conectado al WebSocket y recuerda su sesión
      * vigente. Cuando todos los humanos requeridos están dentro (solo
@@ -113,20 +120,19 @@ public class GameRoomService {
     /**
      * Reacción a la caída del WebSocket de un jugador. Solo actúa si la
      * sesión caída es la vigente (un disconnect de una pestaña vieja no
-     * cuenta). Marca al jugador como desconectado en su sala viva y, si la
-     * partida estaba corriendo, la pausa y arranca la ventana de gracia;
-     * el que la ventana expire sin reconexión lo decide el game loop.
-     * Devuelve la sala afectada para que quien escucha retransmita el
-     * estado (con la sala PAUSED el loop deja de emitir).
+     * cuenta). Un desconectado no está en NINGUNA sala: se le marca en
+     * todas sus salas vivas y las que estaban corriendo se pausan con su
+     * ventana de gracia; el que la ventana expire sin reconexión lo decide
+     * el game loop. Devuelve las salas afectadas para que quien escucha
+     * retransmita el estado (con la sala PAUSED el loop deja de emitir).
      */
-    public Optional<GameState> playerDisconnected(String userId, String sessionId) {
+    public List<GameState> playerDisconnected(String userId, String sessionId) {
         if (!sessionsByUser.remove(userId, sessionId)) {
-            return Optional.empty();
+            return List.of();
         }
         return rooms.values().stream()
                 .filter(state -> state.getStatus() != GameStatus.FINISHED)
                 .filter(state -> isPlayer(state, userId))
-                .findFirst()
                 .map(state -> {
                     if (state.getPlayer1().userId().equals(userId)) {
                         state.setPlayer1Connected(false);
@@ -142,7 +148,8 @@ public class GameRoomService {
                     }
                     snapshot(state);
                     return state;
-                });
+                })
+                .toList();
     }
 
     /** ¿El usuario juega en esta sala? */

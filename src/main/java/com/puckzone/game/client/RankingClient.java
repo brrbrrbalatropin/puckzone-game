@@ -1,5 +1,6 @@
 package com.puckzone.game.client;
 
+import com.puckzone.game.config.GameProperties;
 import com.puckzone.game.config.RankingReportProperties;
 import com.puckzone.game.room.GameState;
 import com.puckzone.game.room.OpponentType;
@@ -25,19 +26,29 @@ public class RankingClient {
     private static final int ATTEMPTS = 2;
 
     private final RestClient restClient;
+    private final GameProperties gameProperties;
 
-    public RankingClient(RestClient.Builder builder, RankingReportProperties properties) {
+    public RankingClient(RestClient.Builder builder, RankingReportProperties properties,
+                         GameProperties gameProperties) {
         var settings = HttpClientSettings.defaults()
                 .withTimeouts(properties.connectTimeout(), properties.readTimeout());
         this.restClient = builder
                 .baseUrl(properties.baseUrl())
                 .requestFactory(ClientHttpRequestFactoryBuilder.detect().build(settings))
                 .build();
+        this.gameProperties = gameProperties;
     }
 
-    /** Construye el payload winner/loser a partir del estado final y lo envía. */
+    /**
+     * Construye el payload winner/loser a partir del estado final y lo
+     * envía. El ganador lo dice {@code winnerId} (con un forfeit el
+     * marcador no alcanza: el que se fue podía ir ganando); null = ganó el
+     * bot. El contrato de ranking exige winnerScore = goles de victoria
+     * aunque en un forfeit el ganador tuviera menos; los goles reales del
+     * perdedor sí viajan tal cual.
+     */
     public void reportFinished(GameState state) {
-        boolean player1Won = state.getScore1() > state.getScore2();
+        boolean player1Won = state.getPlayer1().userId().equals(state.getWinnerId());
         Player winner = player1Won ? state.getPlayer1() : state.getPlayer2();
         Player loser = player1Won ? state.getPlayer2() : state.getPlayer1();
         long duration = state.getStartedAtEpochMs() > 0
@@ -53,8 +64,8 @@ public class RankingClient {
                 loser == null ? null : loser.username(),
                 winner == null ? null : winner.university(),
                 loser == null ? null : loser.university(),
-                Math.max(state.getScore1(), state.getScore2()),
-                Math.min(state.getScore1(), state.getScore2()),
+                gameProperties.goalsToWin(),
+                player1Won ? state.getScore2() : state.getScore1(),
                 duration);
 
         for (int attempt = 1; attempt <= ATTEMPTS; attempt++) {

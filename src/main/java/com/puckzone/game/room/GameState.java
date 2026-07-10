@@ -53,6 +53,16 @@ public class GameState {
      */
     private long graceDeadlineEpochMs;
 
+    /**
+     * userId del ganador cuando la partida está FINISHED; null si ganó el
+     * bot o si ambos humanos abandonaron. Explícito porque en un forfeit
+     * el marcador no determina al ganador.
+     */
+    private String winnerId;
+
+    /** Cómo terminó la partida (solo con status FINISHED). */
+    private FinishReason finishReason;
+
     /** ¿Están conectados todos los humanos que la partida necesita? */
     public boolean allPlayersConnected() {
         return player1Connected && (opponentType == OpponentType.BOT || player2Connected);

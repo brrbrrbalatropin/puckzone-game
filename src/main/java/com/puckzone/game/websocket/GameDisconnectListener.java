@@ -30,7 +30,7 @@ public class GameDisconnectListener {
             return;
         }
         rooms.playerDisconnected(event.getUser().getName(), event.getSessionId())
-                .ifPresent(state ->
+                .forEach(state ->
                         messaging.convertAndSend("/topic/game/" + state.getGameId(), state));
     }
 }

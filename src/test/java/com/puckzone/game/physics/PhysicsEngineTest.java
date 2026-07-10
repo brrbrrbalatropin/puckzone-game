@@ -1,9 +1,11 @@
 package com.puckzone.game.physics;
 
 import com.puckzone.game.config.GameProperties;
+import com.puckzone.game.room.FinishReason;
 import com.puckzone.game.room.GameState;
 import com.puckzone.game.room.GameStatus;
 import com.puckzone.game.room.OpponentType;
+import com.puckzone.game.room.Player;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,6 +24,8 @@ class PhysicsEngineTest {
     private GameState playing() {
         return GameState.builder()
                 .gameId("test")
+                .player1(new Player("p1", "daniel", "escuelaing"))
+                .player2(new Player("p2", "rival", "unal"))
                 .opponentType(OpponentType.HUMAN)
                 .status(GameStatus.PLAYING)
                 .puckX(400).puckY(250)
@@ -100,6 +104,8 @@ class PhysicsEngineTest {
         assertEquals(TickOutcome.FINISHED, outcome);
         assertEquals(7, state.getScore1());
         assertEquals(GameStatus.FINISHED, state.getStatus());
+        assertEquals("p1", state.getWinnerId());
+        assertEquals(FinishReason.SCORE, state.getFinishReason());
         assertEquals(0, state.getPuckVx());      // disco quieto: ya no hay saque
     }
 

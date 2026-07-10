@@ -1,6 +1,7 @@
 package com.puckzone.game.physics;
 
 import com.puckzone.game.config.GameProperties;
+import com.puckzone.game.room.FinishReason;
 import com.puckzone.game.room.GameState;
 import com.puckzone.game.room.GameStatus;
 import org.springframework.stereotype.Component;
@@ -125,6 +126,10 @@ public class PhysicsEngine {
         resetPuckToCenter(state);
         if (state.getScore1() >= props.goalsToWin() || state.getScore2() >= props.goalsToWin()) {
             state.setStatus(GameStatus.FINISHED);
+            state.setFinishReason(FinishReason.SCORE);
+            state.setWinnerId(state.getScore1() > state.getScore2()
+                    ? state.getPlayer1().userId()
+                    : state.getPlayer2() == null ? null : state.getPlayer2().userId());
             return TickOutcome.FINISHED;
         }
         serve(state, scorer == 2 ? -1 : 1);

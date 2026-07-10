@@ -1,5 +1,6 @@
 package com.puckzone.game.websocket;
 
+import com.puckzone.game.room.FinishReason;
 import com.puckzone.game.room.GameRoomService;
 import com.puckzone.game.room.GameState;
 import com.puckzone.game.room.GameStatus;
@@ -45,7 +46,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * partida arranca sola, el disco se mueve entre broadcasts del loop y los
  * inputs de paleta se aplican validados. Sin token no hay conexión.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        // Ventana de gracia corta para poder probar el cierre por abandono
+        // sin esperar los 30s reales (la reconexión del test tarda ~100ms).
+        properties = "puckzone.game.disconnect-grace-seconds=2")
 class GameSocketIntegrationTest {
 
     /** Mismo default dev que application.yaml (y que auth/matchmaking/gateway). */
@@ -146,6 +150,41 @@ class GameSocketIntegrationTest {
         var resumed = awaitState(state -> state.getStatus() == GameStatus.PLAYING);
         assertNotNull(resumed, "la partida no se reanudó con la reconexión");
         assertEquals(0, resumed.getGraceDeadlineEpochMs(), "la reanudación no limpió la ventana de gracia");
+    }
+
+    @Test
+    void abandonoSinReconexionDaLaVictoriaAlQueSeQueda() throws Exception {
+        session1 = connectAs(PLAYER1_ID, "daniel");
+        session2 = connectAs(PLAYER2_ID, "rival");
+        subscribeToGame(session1);
+        join(session1);
+        join(session2);
+        assertNotNull(awaitState(state -> state.getStatus() == GameStatus.PLAYING));
+
+        // El jugador 2 se va y NO vuelve: al expirar la gracia gana el 1
+        session2.disconnect();
+        assertNotNull(awaitState(state -> state.getStatus() == GameStatus.PAUSED));
+        var finished = awaitState(state -> state.getStatus() == GameStatus.FINISHED);
+        assertNotNull(finished, "la ventana de gracia expirada no cerró la partida");
+        assertEquals(PLAYER1_ID, finished.getWinnerId(), "debía ganar el que se quedó esperando");
+        assertEquals(FinishReason.DISCONNECT, finished.getFinishReason());
+    }
+
+    @Test
+    void rendirseTerminaLaPartidaAFavorDelRival() throws Exception {
+        session1 = connectAs(PLAYER1_ID, "daniel");
+        session2 = connectAs(PLAYER2_ID, "rival");
+        subscribeToGame(session2);
+        join(session1);
+        join(session2);
+        assertNotNull(awaitState(state -> state.getStatus() == GameStatus.PLAYING));
+
+        // El jugador 1 se rinde (la confirmación ya la hizo el frontend)
+        session1.send("/app/game/" + gameId + "/surrender", Map.of());
+        var finished = awaitState(state -> state.getStatus() == GameStatus.FINISHED);
+        assertNotNull(finished, "la rendición no terminó la partida");
+        assertEquals(PLAYER2_ID, finished.getWinnerId(), "debía ganar el rival del que se rinde");
+        assertEquals(FinishReason.SURRENDER, finished.getFinishReason());
     }
 
     @Test
