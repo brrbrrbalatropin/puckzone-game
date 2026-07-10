@@ -10,6 +10,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.security.Principal;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,7 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Entrada STOMP de los jugadores. Los clientes solo envían inputs por
  * {@code /app/**}; el estado siempre viaja de vuelta por
- * {@code /topic/game/{id}}, calculado por el servidor.
+ * {@code /topic/game/{id}}, calculado por el servidor. La identidad de
+ * cada mensaje es el {@link Principal} que dejó el JWT del handshake:
+ * un cliente no puede actuar en nombre de otro jugador.
  */
 @Controller
 public class GameSocketController {
@@ -50,8 +53,8 @@ public class GameSocketController {
      * esperar a que la partida arranque.
      */
     @MessageMapping("/game/{gameId}/join")
-    public void join(@DestinationVariable String gameId, JoinMessage message) {
-        rooms.playerConnected(gameId, message.userId()).ifPresentOrElse(
+    public void join(@DestinationVariable String gameId, Principal principal) {
+        rooms.playerConnected(gameId, principal.getName()).ifPresentOrElse(
                 state -> messaging.convertAndSend("/topic/game/" + gameId, state),
                 () -> log.warn("Join a la sala inexistente {}", gameId));
     }
@@ -62,11 +65,12 @@ public class GameSocketController {
      * nada: el game loop transmite el estado resultante a 60Hz.
      */
     @MessageMapping("/game/{gameId}/paddle")
-    public void movePaddle(@DestinationVariable String gameId, PaddleMoveMessage message) {
+    public void movePaddle(@DestinationVariable String gameId, PaddleMoveMessage message,
+                           Principal principal) {
         rooms.find(gameId).ifPresent(state -> {
-            int player = playerNumber(state, message.userId());
+            int player = playerNumber(state, principal.getName());
             if (player == 0) {
-                log.warn("Usuario {} intentó mover paleta en la sala ajena {}", message.userId(), gameId);
+                log.warn("Usuario {} intentó mover paleta en la sala ajena {}", principal.getName(), gameId);
                 return;
             }
             engine.movePaddle(state, player, message.x(), message.y());
@@ -79,18 +83,20 @@ public class GameSocketController {
      * aparte para no ensuciar el stream de estados a 60Hz.
      */
     @MessageMapping("/game/{gameId}/emote")
-    public void emote(@DestinationVariable String gameId, EmoteMessage message) {
+    public void emote(@DestinationVariable String gameId, EmoteMessage message,
+                      Principal principal) {
         if (!ALLOWED_EMOTES.contains(message.emote())) {
             return;
         }
+        String userId = principal.getName();
         rooms.find(gameId).ifPresent(state -> {
-            if (playerNumber(state, message.userId()) == 0) {
-                log.warn("Usuario {} intentó mandar emote en la sala ajena {}", message.userId(), gameId);
+            if (playerNumber(state, userId) == 0) {
+                log.warn("Usuario {} intentó mandar emote en la sala ajena {}", userId, gameId);
                 return;
             }
             // compute es atómico por clave: sin esto, dos emotes seguidos se
             // procesan en hilos distintos del broker y ambos pasan el chequeo.
-            String key = gameId + ":" + message.userId();
+            String key = gameId + ":" + userId;
             long now = System.currentTimeMillis();
             boolean[] allowed = {false};
             lastEmoteAt.compute(key, (k, last) -> {
@@ -104,7 +110,7 @@ public class GameSocketController {
                 return;
             }
             messaging.convertAndSend("/topic/game/" + gameId + "/emotes",
-                    new EmoteBroadcast(message.userId(), message.emote()));
+                    new EmoteBroadcast(userId, message.emote()));
         });
     }
 

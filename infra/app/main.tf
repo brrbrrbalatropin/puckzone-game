@@ -34,6 +34,12 @@ resource "azurerm_container_app" "game" {
         name  = "RANKING_BASE_URL"
         value = "http://puckzone-ranking"
       }
+      # Secreto JWT de produccion (HS512, generado en infra/base): game valida
+      # el ?token= del handshake WS localmente, igual que gateway/matchmaking.
+      env {
+        name        = "PUCKZONE_JWT_SECRET"
+        secret_name = "jwt-secret"
+      }
       # Origenes permitidos en el handshake SockJS (el Origin del navegador
       # llega intacto a traves del proxy del gateway). Sin esto, game solo
       # acepta los localhost del application.yaml y rechaza al frontend
@@ -55,6 +61,11 @@ resource "azurerm_container_app" "game" {
         path      = "/actuator/health/readiness"
       }
     }
+  }
+
+  secret {
+    name  = "jwt-secret"
+    value = data.terraform_remote_state.base.outputs.jwt_secret
   }
 
   # Interno: solo el gateway (en el mismo environment) le habla; nada de internet.
