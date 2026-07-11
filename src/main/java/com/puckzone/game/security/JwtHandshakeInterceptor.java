@@ -16,13 +16,13 @@ import java.util.Map;
  * {@code /ws?token=<jwt>} porque SockJS no permite el header Authorization
  * (el gateway acepta esa forma por la misma razón y reenvía el query
  * intacto). Sin token válido el handshake muere con 401 y la conexión
- * nunca se abre; con token válido el userId ({@code sub}) queda en los
- * atributos de la sesión para que {@link JwtHandshakeHandler} arme el
- * Principal. La validación en sí la hace {@link JwtTokenParser}.
+ * nunca se abre; con token válido la identidad completa ({@link JwtClaims})
+ * queda en los atributos de la sesión para que {@link JwtHandshakeHandler}
+ * arme el Principal. La validación en sí la hace {@link JwtTokenParser}.
  */
 public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
-    public static final String USER_ID_ATTRIBUTE = "puckzone.userId";
+    public static final String CLAIMS_ATTRIBUTE = "puckzone.claims";
 
     private static final Logger log = LoggerFactory.getLogger(JwtHandshakeInterceptor.class);
 
@@ -37,9 +37,9 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
                                    WebSocketHandler wsHandler, Map<String, Object> attributes) {
         String token = UriComponentsBuilder.fromUri(request.getURI())
                 .build().getQueryParams().getFirst("token");
-        return tokenParser.userIdFrom(token)
-                .map(userId -> {
-                    attributes.put(USER_ID_ATTRIBUTE, userId);
+        return tokenParser.claimsFrom(token)
+                .map(claims -> {
+                    attributes.put(CLAIMS_ATTRIBUTE, claims);
                     return true;
                 })
                 .orElseGet(() -> {

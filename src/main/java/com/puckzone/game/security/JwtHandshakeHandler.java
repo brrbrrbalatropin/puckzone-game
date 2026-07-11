@@ -8,7 +8,7 @@ import java.security.Principal;
 import java.util.Map;
 
 /**
- * Convierte el userId que {@link JwtHandshakeInterceptor} dejó en los
+ * Convierte los claims que {@link JwtHandshakeInterceptor} dejó en los
  * atributos del handshake en el {@link Principal} de la sesión STOMP.
  * Si el interceptor rechazó el handshake este método nunca corre.
  */
@@ -17,6 +17,7 @@ public class JwtHandshakeHandler extends DefaultHandshakeHandler {
     @Override
     protected Principal determineUser(ServerHttpRequest request, WebSocketHandler wsHandler,
                                       Map<String, Object> attributes) {
-        return new StompPrincipal((String) attributes.get(JwtHandshakeInterceptor.USER_ID_ATTRIBUTE));
+        JwtClaims claims = (JwtClaims) attributes.get(JwtHandshakeInterceptor.CLAIMS_ATTRIBUTE);
+        return new StompPrincipal(claims.userId(), claims.username(), claims.university());
     }
 }

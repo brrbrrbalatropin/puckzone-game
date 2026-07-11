@@ -33,16 +33,31 @@ public class JwtTokenParser {
 
     /** userId del token, o empty si el token falta, está mal firmado o expiró. */
     public Optional<String> userIdFrom(String token) {
+        return claimsFrom(token).map(JwtClaims::userId);
+    }
+
+    /**
+     * Identidad completa del token (userId + username + university), o empty
+     * si el token falta, está mal firmado o expiró. username/university
+     * pueden venir null en tokens viejos; el sub siempre está.
+     */
+    public Optional<JwtClaims> claimsFrom(String token) {
         if (token == null || token.isBlank()) {
             return Optional.empty();
         }
         try {
-            return Optional.ofNullable(Jwts.parser()
+            var payload = Jwts.parser()
                     .verifyWith(key)
                     .build()
                     .parseSignedClaims(token)
-                    .getPayload()
-                    .getSubject());
+                    .getPayload();
+            if (payload.getSubject() == null) {
+                return Optional.empty();
+            }
+            return Optional.of(new JwtClaims(
+                    payload.getSubject(),
+                    payload.get("username", String.class),
+                    payload.get("university", String.class)));
         } catch (JwtException | IllegalArgumentException e) {
             log.warn("Token JWT inválido rechazado: {}", e.getMessage());
             return Optional.empty();
