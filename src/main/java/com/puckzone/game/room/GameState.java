@@ -79,6 +79,19 @@ public class GameState {
     /** Reloj del spawner de poderes (interno del PowerManager). */
     private long lastPowerSpawnEpochMs;
 
+    /**
+     * Pausa de anuncio: el saque no sale antes de este instante (el disco
+     * espera quieto en el centro). El frontend muestra el banner de gol o
+     * de arranque mientras no se cumpla.
+     */
+    private long serveAtEpochMs;
+
+    /** Quién anotó el último gol (1|2; 0 = aún nadie), para el banner. */
+    private int lastScorer;
+
+    /** Dirección del saque diferido (-1 izquierda, 1 derecha, 0 = aleatoria). */
+    private int pendingServeDirection;
+
     /** Epoch ms de creación de la sala; para barrer WAITING huérfanas. */
     private long createdAtEpochMs;
 

@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PhysicsEngineTest {
 
     private final GameProperties props =
-            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 60, 300);
+            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 2, 60, 300);
     private final PhysicsEngine engine = new PhysicsEngine(props);
 
     private GameState playing() {
@@ -68,7 +68,7 @@ class PhysicsEngineTest {
     }
 
     @Test
-    void discoEnLaPorteriaIzquierdaEsGolDelJugador2YSacaHaciaElQueConcedio() {
+    void elGolRetieneElSaqueParaElAnuncioYLuegoSacaHaciaElQueConcedio() {
         var state = playing();
         state.setPuckX(20);
         state.setPuckY(250);                     // dentro de la abertura [150, 350]
@@ -79,8 +79,20 @@ class PhysicsEngineTest {
 
         assertEquals(TickOutcome.GOAL, outcome);
         assertEquals(1, state.getScore2());
-        assertEquals(400, state.getPuckX());     // saque desde el centro
-        assertTrue(state.getPuckVx() < 0);       // hacia el jugador 1, que concedió
+        assertEquals(400, state.getPuckX());     // disco retenido en el centro
+        assertEquals(0, state.getPuckVx(), 0.001, "durante el anuncio no hay saque");
+        assertEquals(2, state.getLastScorer());
+        assertTrue(state.getServeAtEpochMs() > System.currentTimeMillis(),
+                "la pausa de anuncio debía quedar armada");
+
+        // Sigue retenido mientras dure la pausa
+        engine.tick(state, 0.1);
+        assertEquals(0, state.getPuckVx(), 0.001);
+
+        // Pasada la pausa, el saque sale hacia el jugador 1, que concedió
+        state.setServeAtEpochMs(System.currentTimeMillis() - 1);
+        engine.tick(state, 0.001);
+        assertTrue(state.getPuckVx() < 0, "el saque debía salir hacia quien concedió");
     }
 
     @Test

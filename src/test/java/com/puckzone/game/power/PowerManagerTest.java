@@ -25,7 +25,7 @@ class PowerManagerTest {
     private static final long T0 = 1_000_000;
 
     private final GameProperties gameProps =
-            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 60, 300);
+            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 2, 60, 300);
     /** Spawn cada 12s, parpadeo 2s, vida 10s, efectos de 8s, fantasma 10-15s. */
     private final PowerProperties props = new PowerProperties(12, 2, 10, 8, 18, 35, 80, 10, 15);
     private final PowerManager manager = new PowerManager(props, gameProps);

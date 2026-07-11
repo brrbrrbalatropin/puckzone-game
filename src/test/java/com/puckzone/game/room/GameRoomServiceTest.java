@@ -21,7 +21,7 @@ class GameRoomServiceTest {
 
     /** Retención FINISHED 60s, timeout WAITING 300s (defaults de producción). */
     private final GameProperties props =
-            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 60, 300);
+            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 2, 60, 300);
 
     private final List<Object> publishedEvents = new ArrayList<>();
     private GameRoomService service;

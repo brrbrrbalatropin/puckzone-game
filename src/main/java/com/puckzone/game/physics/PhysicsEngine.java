@@ -61,7 +61,15 @@ public class PhysicsEngine {
             return TickOutcome.NONE;
         }
         if (state.getPuckVx() == 0 && state.getPuckVy() == 0) {
-            serve(state, ThreadLocalRandom.current().nextBoolean() ? 1 : -1);
+            if (System.currentTimeMillis() < state.getServeAtEpochMs()) {
+                // Pausa de anuncio (gol o arranque): el saque queda retenido
+                // y el disco quieto en el centro; las paletas sí se mueven.
+                return TickOutcome.NONE;
+            }
+            int direction = state.getPendingServeDirection();
+            serve(state, direction != 0 ? direction
+                    : ThreadLocalRandom.current().nextBoolean() ? 1 : -1);
+            state.setPendingServeDirection(0);
         }
 
         state.setPuckX(state.getPuckX() + state.getPuckVx() * dt);
@@ -157,7 +165,11 @@ public class PhysicsEngine {
             state.setFinishedAtEpochMs(System.currentTimeMillis());
             return TickOutcome.FINISHED;
         }
-        serve(state, scorer == 2 ? -1 : 1);
+        // Pausa de anuncio: el saque (hacia el que concedió) sale cuando
+        // el tick lo libere, pasado goal-pause-seconds.
+        state.setLastScorer(scorer);
+        state.setServeAtEpochMs(System.currentTimeMillis() + props.goalPauseSeconds() * 1000L);
+        state.setPendingServeDirection(scorer == 2 ? -1 : 1);
         return TickOutcome.GOAL;
     }
 

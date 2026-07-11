@@ -128,7 +128,10 @@ public class GameRoomService {
             sessionsByUser.put(userId, sessionId);
             if (state.getStatus() == GameStatus.WAITING && state.allPlayersConnected()) {
                 state.setStatus(GameStatus.PLAYING);
-                state.setStartedAtEpochMs(System.currentTimeMillis());
+                long now = System.currentTimeMillis();
+                state.setStartedAtEpochMs(now);
+                // El mismo respiro de anuncio que tras un gol, para arrancar.
+                state.setServeAtEpochMs(now + properties.goalPauseSeconds() * 1000L);
                 log.info("Sala {} completa: la partida arranca", gameId);
             } else if (state.getStatus() == GameStatus.PAUSED && state.allPlayersConnected()) {
                 state.setStatus(GameStatus.PLAYING);

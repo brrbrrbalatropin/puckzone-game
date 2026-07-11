@@ -21,6 +21,9 @@ public record GameProperties(
         @DefaultValue("900") double maxPuckSpeed,
         @DefaultValue("300") double serveSpeed,
         @DefaultValue("30") int disconnectGraceSeconds,
+        // Pausa de anuncio tras cada gol (y al arrancar): el disco queda
+        // retenido en el centro y el frontend muestra quién anotó.
+        @DefaultValue("2") int goalPauseSeconds,
         // Cuánto vive una sala FINISHED en memoria (para que un jugador que
         // llegue tarde aún reciba el estado final) antes de que el barrido
         // la elimine. Redis conserva el snapshot con su propio TTL.

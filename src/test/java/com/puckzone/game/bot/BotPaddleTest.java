@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BotPaddleTest {
 
     private final GameProperties props =
-            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 60, 300);
+            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 2, 60, 300);
     private final BotPaddle bot = new BotPaddle(new PhysicsEngine(props), props);
 
     private GameState game() {
