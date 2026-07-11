@@ -45,6 +45,14 @@ public class PhysicsEngine {
     /** Multiplicadores del tope de velocidad para caos y zona rápida. */
     private static final double CHAOS_CAP = 2.0;
     private static final double FAST_ZONE_CAP = 1.5;
+    /** Contactos de paleta seguidos con la firma de encierro que disparan el escape. */
+    private static final int PINCH_TRIGGER_HITS = 4;
+    /** |cos| mínimo para considerar dos normales opuestas (sándwich) o iguales (prensado). */
+    private static final double PINCH_ALIGNMENT = 0.9;
+    /** El sándwich entre paletas teletransporta el disco entre sus bordes: hasta ~2 radios de golpe. */
+    private static final double PINCH_SANDWICH_DIST = 80;
+    /** Prensado contra la pared: el disco ni se mueve. Llevar el disco empujándolo avanza ~6px/tick. */
+    private static final double PINCH_PRESS_DIST = 4;
 
     private final GameProperties props;
 
@@ -187,6 +195,7 @@ public class PhysicsEngine {
         if (state.getEffects() != null) {
             state.getEffects().removeIf(effect -> effect.type() == PowerType.GHOST_PUCK);
         }
+        state.setPinchStreak(0);
     }
 
     /** Saque desde donde esté el disco, con ángulo aleatorio de ±30°. */
@@ -227,7 +236,61 @@ public class PhysicsEngine {
         state.setPuckVx(nx * newSpeed);
         state.setPuckVy(ny * newSpeed);
         revealPuck(state);
+        registerPaddleContact(state, nx, ny);
         keepPuckInsideBoard(state);
+    }
+
+    /**
+     * Detector del encierro del disco. La firma del bug: la normal del
+     * contacto se repite espejada (sándwich entre dos paletas: i,-i,i,-i)
+     * o idéntica con el disco clavado en el sitio (prensado contra la
+     * pared), tick tras tick. En juego normal eso no ocurre: un golpe
+     * legítimo manda el disco lejos y la siguiente colisión llega con
+     * otra normal en otra parte. A los {@value #PINCH_TRIGGER_HITS}
+     * contactos seguidos con la firma, el disco se escapa.
+     */
+    private void registerPaddleContact(GameState state, double nx, double ny) {
+        double dot = nx * state.getPinchNormalX() + ny * state.getPinchNormalY();
+        double dist = Math.hypot(state.getPuckX() - state.getPinchPuckX(),
+                state.getPuckY() - state.getPinchPuckY());
+        boolean sandwiched = dot < -PINCH_ALIGNMENT && dist < PINCH_SANDWICH_DIST;
+        boolean pressed = dot > PINCH_ALIGNMENT && dist < PINCH_PRESS_DIST;
+
+        state.setPinchStreak(sandwiched || pressed ? state.getPinchStreak() + 1 : 1);
+        state.setPinchNormalX(nx);
+        state.setPinchNormalY(ny);
+        state.setPinchPuckX(state.getPuckX());
+        state.setPinchPuckY(state.getPuckY());
+
+        if (state.getPinchStreak() >= PINCH_TRIGGER_HITS) {
+            escapePinch(state, nx, ny);
+            state.setPinchStreak(0);
+        }
+    }
+
+    /**
+     * El disco pellizcado se escurre perpendicular a la normal del
+     * encierro, hacia el lado con cancha abierta, a velocidad de golpe —
+     * como un disco real apretado entre dos mazos. Además de la
+     * velocidad, se desplaza fuera del alcance de las paletas: si solo
+     * cambiara la velocidad, la colisión del siguiente tick la
+     * sobreescribiría y el encierro continuaría.
+     */
+    private void escapePinch(GameState state, double nx, double ny) {
+        double tx = -ny;
+        double ty = nx;
+        double toCenterX = props.boardWidth() / 2.0 - state.getPuckX();
+        double toCenterY = props.boardHeight() / 2.0 - state.getPuckY();
+        if (tx * toCenterX + ty * toCenterY < 0) {
+            tx = -tx;
+            ty = -ty;
+        }
+        double clearance = props.puckRadius() + 5
+                + Math.max(paddleRadius(state, 1), paddleRadius(state, 2));
+        state.setPuckX(state.getPuckX() + tx * clearance);
+        state.setPuckY(state.getPuckY() + ty * clearance);
+        state.setPuckVx(tx * MIN_HIT_SPEED);
+        state.setPuckVy(ty * MIN_HIT_SPEED);
     }
 
     /**

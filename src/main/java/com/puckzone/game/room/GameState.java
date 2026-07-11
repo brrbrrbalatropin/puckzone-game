@@ -92,6 +92,18 @@ public class GameState {
     /** Dirección del saque diferido (-1 izquierda, 1 derecha, 0 = aleatoria). */
     private int pendingServeDirection;
 
+    /**
+     * Detector de encierro del disco (la firma del bug es la normal del
+     * contacto repitiéndose espejada o idéntica en el mismo punto, tick
+     * tras tick): última normal de colisión con paleta, dónde ocurrió y
+     * cuántos contactos lleva la racha. Interno del motor.
+     */
+    private double pinchNormalX;
+    private double pinchNormalY;
+    private double pinchPuckX;
+    private double pinchPuckY;
+    private int pinchStreak;
+
     /** Epoch ms de creación de la sala; para barrer WAITING huérfanas. */
     private long createdAtEpochMs;
 

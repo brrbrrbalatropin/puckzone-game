@@ -226,11 +226,57 @@ class PhysicsEngineTest {
     }
 
     @Test
+    void elSandwichEntreDosPaletasEscupeElDiscoHaciaLaCanchaAbierta() {
+        var state = playing();
+        state.setPaddle1X(370);
+        state.setPaddle1Y(100);
+        state.setPaddle2X(430);
+        state.setPaddle2Y(100);
+        state.setPuckX(400);
+        state.setPuckY(100);
+        state.setPuckVy(0.001);
+
+        for (int i = 0; i < 4; i++) {
+            engine.tick(state, 0.001);
+        }
+
+        assertTrue(state.getPuckVy() > 300, "al 4º contacto espejado debía escurrirse hacia abajo");
+        assertTrue(state.getPuckY() > 130, "el escape debía sacarlo del corredor del encierro");
+    }
+
+    @Test
+    void elPrensadoContraLaParedTambienEscapa() {
+        var state = playing();
+        state.setPaddle1X(200);
+        state.setPaddle1Y(58);
+        state.setPuckX(200);
+        state.setPuckY(15);
+        state.setPuckVy(-0.001);
+
+        for (int i = 0; i < 6; i++) {
+            engine.tick(state, 0.001);
+        }
+
+        assertTrue(state.getPuckVx() > 300, "debía escurrirse a lo largo de la pared hacia el centro");
+        assertTrue(Math.abs(state.getPuckX() - 200) > 40,
+                "el escape debía sacarlo del alcance de la paleta");
+    }
+
+    @Test
+    void unGolpeAisladoNoDisparaElEscapeDelEncierro() {
+        var state = playing();
+        state.setPuckX(100);
+        state.setPuckVy(0.001);
+
+        engine.tick(state, 0.001);
+
+        assertEquals(1, state.getPinchStreak(), "un contacto aislado no es encierro");
+        assertTrue(state.getPuckVx() > 0, "el golpe normal debía salir hacia adelante");
+    }
+
+    @Test
     void elEmpujonDeLaPaletaEnLaEsquinaNoSacaElDiscoDelTablero() {
         var state = playing();
-        // Caso real: el bot incrustado en la esquina superior derecha empujaba
-        // el disco fuera del tablero y quedaba "desaparecido" en un bucle
-        // pared-paleta. El disco debe quedar confinado y salir hacia adentro.
         state.setPaddle2X(770);
         state.setPaddle2Y(30);
         state.setPuckX(788);
