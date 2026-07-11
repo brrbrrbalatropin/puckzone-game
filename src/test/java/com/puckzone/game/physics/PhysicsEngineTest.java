@@ -1,6 +1,8 @@
 package com.puckzone.game.physics;
 
 import com.puckzone.game.config.GameProperties;
+import com.puckzone.game.power.ActiveEffect;
+import com.puckzone.game.power.PowerType;
 import com.puckzone.game.room.FinishReason;
 import com.puckzone.game.room.GameState;
 import com.puckzone.game.room.GameStatus;
@@ -8,7 +10,10 @@ import com.puckzone.game.room.OpponentType;
 import com.puckzone.game.room.Player;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -31,6 +36,9 @@ class PhysicsEngineTest {
                 .puckX(400).puckY(250)
                 .paddle1X(60).paddle1Y(250)
                 .paddle2X(740).paddle2Y(250)
+                .paddle1Radius(30).paddle2Radius(30)
+                .puckVisible(true)
+                .effects(new ArrayList<>())
                 .build();
     }
 
@@ -107,6 +115,85 @@ class PhysicsEngineTest {
         assertEquals("p1", state.getWinnerId());
         assertEquals(FinishReason.SCORE, state.getFinishReason());
         assertEquals(0, state.getPuckVx());      // disco quieto: ya no hay saque
+    }
+
+    @Test
+    void elDiscoRebotaEnElObstaculo() {
+        var state = playing();
+        state.getEffects().add(new ActiveEffect(PowerType.OBSTACLE, 1, 400, 250, 35,
+                System.currentTimeMillis() + 8000));
+        state.setPuckX(340);
+        state.setPuckY(250);
+        state.setPuckVx(300);
+        state.setPuckVy(0);
+
+        engine.tick(state, 0.1); // avanza a x=370: penetra el obstáculo (radio 35+15)
+
+        assertTrue(state.getPuckVx() < 0, "el disco no rebotó contra el obstáculo");
+        assertEquals(350, state.getPuckX(), 0.001, "debía quedar empujado justo al borde");
+    }
+
+    @Test
+    void cualquierReboteRevelaElDiscoFantasma() {
+        var state = playing();
+        state.setPuckVisible(false);
+        state.setPuckY(20);
+        state.setPuckVx(50);
+        state.setPuckVy(-200);
+
+        engine.tick(state, 0.1); // rebota en la pared superior
+
+        assertTrue(state.isPuckVisible(), "el rebote debía revelar el disco fantasma");
+    }
+
+    @Test
+    void elGolpeConCaosSaleAlDobleYSeDesarma() {
+        var state = playing();
+        state.setChaosArmed(true);
+        state.setPuckX(100); // a 40 del centro de la paleta 1: dentro de 15+30
+        state.setPuckVy(0.001); // casi quieto sin disparar el saque automático
+
+        engine.tick(state, 0.001);
+
+        double speed = Math.hypot(state.getPuckVx(), state.getPuckVy());
+        assertEquals(820, speed, 1, "el golpe caótico debía salir al doble del normal (410)");
+        assertFalse(state.isChaosArmed(), "el caos es de un solo golpe");
+        assertTrue(state.isChaosShot(), "el tiro caótico debe conservar su tope 2x");
+    }
+
+    @Test
+    void elEscudoDuplicaElAlcanceDeLaPaleta() {
+        var normal = playing();
+        normal.setPuckX(130); // a 70 de la paleta 1: fuera del alcance normal (45)
+        normal.setPuckVy(0.001);
+        engine.tick(normal, 0.001);
+        assertEquals(0, normal.getPuckVx(), 0.001, "sin escudo no debía haber colisión");
+
+        var shielded = playing();
+        shielded.setPaddle1Radius(60); // escudo: alcance 15+60=75 > 70
+        shielded.setPuckX(130);
+        shielded.setPuckVy(0.001);
+        engine.tick(shielded, 0.001);
+        assertTrue(shielded.getPuckVx() > 0, "con escudo la paleta agrandada debía golpear");
+    }
+
+    @Test
+    void laZonaLentaFrenaYLaRapidaAcelera() {
+        var slow = playing();
+        slow.getEffects().add(new ActiveEffect(PowerType.SLOW_ZONE, 1, 400, 250, 80,
+                System.currentTimeMillis() + 8000));
+        slow.setPuckVx(300);
+        engine.tick(slow, 0.1);
+        assertTrue(Math.hypot(slow.getPuckVx(), slow.getPuckVy()) < 300,
+                "la zona lenta no frenó el disco");
+
+        var fast = playing();
+        fast.getEffects().add(new ActiveEffect(PowerType.FAST_ZONE, 1, 400, 250, 80,
+                System.currentTimeMillis() + 8000));
+        fast.setPuckVx(300);
+        engine.tick(fast, 0.1);
+        assertTrue(Math.hypot(fast.getPuckVx(), fast.getPuckVy()) > 300,
+                "la zona rápida no aceleró el disco");
     }
 
     @Test

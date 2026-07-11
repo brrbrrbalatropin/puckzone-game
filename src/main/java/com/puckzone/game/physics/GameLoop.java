@@ -2,6 +2,7 @@ package com.puckzone.game.physics;
 
 import com.puckzone.game.bot.BotPaddle;
 import com.puckzone.game.config.GameProperties;
+import com.puckzone.game.power.PowerManager;
 import com.puckzone.game.room.GameEndService;
 import com.puckzone.game.room.GameRoomService;
 import com.puckzone.game.room.GameState;
@@ -32,6 +33,7 @@ public class GameLoop {
     private final GameRoomService rooms;
     private final PhysicsEngine engine;
     private final BotPaddle bot;
+    private final PowerManager powers;
     private final SimpMessagingTemplate messaging;
     private final GameProperties props;
     private final GameEndService gameEnd;
@@ -40,11 +42,12 @@ public class GameLoop {
     private long lastCleanupEpochMs;
 
     public GameLoop(GameRoomService rooms, PhysicsEngine engine, BotPaddle bot,
-                    SimpMessagingTemplate messaging, GameProperties props,
-                    GameEndService gameEnd) {
+                    PowerManager powers, SimpMessagingTemplate messaging,
+                    GameProperties props, GameEndService gameEnd) {
         this.rooms = rooms;
         this.engine = engine;
         this.bot = bot;
+        this.powers = powers;
         this.messaging = messaging;
         this.props = props;
         this.gameEnd = gameEnd;
@@ -70,11 +73,13 @@ public class GameLoop {
      */
     private void tickAll() {
         double dt = 1.0 / props.tickRate();
+        long now = System.currentTimeMillis();
         for (GameState game : rooms.activeGames()) {
             try {
                 if (game.getOpponentType() == OpponentType.BOT) {
                     bot.act(game, dt);
                 }
+                powers.tick(game, now);
                 var outcome = engine.tick(game, dt);
                 messaging.convertAndSend("/topic/game/" + game.getGameId(), game);
                 if (outcome != TickOutcome.NONE) {

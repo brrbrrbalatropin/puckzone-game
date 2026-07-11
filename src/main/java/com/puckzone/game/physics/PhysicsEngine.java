@@ -1,11 +1,14 @@
 package com.puckzone.game.physics;
 
 import com.puckzone.game.config.GameProperties;
+import com.puckzone.game.power.ActiveEffect;
+import com.puckzone.game.power.PowerType;
 import com.puckzone.game.room.FinishReason;
 import com.puckzone.game.room.GameState;
 import com.puckzone.game.room.GameStatus;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -27,6 +30,15 @@ public class PhysicsEngine {
     private static final double MIN_HIT_SPEED = 350;
     /** Semiapertura del ángulo aleatorio de saque (grados). */
     private static final double SERVE_ANGLE = 30;
+    /** Zona rápida: aceleración proporcional por segundo dentro de la zona. */
+    private static final double FAST_ZONE_ACCEL = 1.2;
+    /** Zona lenta: frenado proporcional por segundo dentro de la zona. */
+    private static final double SLOW_ZONE_BRAKE = 0.8;
+    /** La zona lenta nunca deja el disco más lento que esto (px/s). */
+    private static final double MIN_ZONE_SPEED = 120;
+    /** Multiplicadores del tope de velocidad para caos y zona rápida. */
+    private static final double CHAOS_CAP = 2.0;
+    private static final double FAST_ZONE_CAP = 1.5;
 
     private final GameProperties props;
 
@@ -55,8 +67,10 @@ public class PhysicsEngine {
             return outcome;
         }
 
-        collideWithPaddle(state, state.getPaddle1X(), state.getPaddle1Y(), 1);
-        collideWithPaddle(state, state.getPaddle2X(), state.getPaddle2Y(), -1);
+        collideWithObstacles(state);
+        collideWithPaddle(state, 1);
+        collideWithPaddle(state, 2);
+        applyZones(state, dt);
         capSpeed(state);
         return TickOutcome.NONE;
     }
@@ -84,9 +98,11 @@ public class PhysicsEngine {
         if (state.getPuckY() - r < 0) {
             state.setPuckY(r);
             state.setPuckVy(-state.getPuckVy());
+            state.setPuckVisible(true);
         } else if (state.getPuckY() + r > props.boardHeight()) {
             state.setPuckY(props.boardHeight() - r);
             state.setPuckVy(-state.getPuckVy());
+            state.setPuckVisible(true);
         }
     }
 
@@ -102,12 +118,14 @@ public class PhysicsEngine {
             }
             state.setPuckX(r);
             state.setPuckVx(-state.getPuckVx());
+            state.setPuckVisible(true);
         } else if (state.getPuckX() + r >= props.boardWidth()) {
             if (inGoalMouth(state.getPuckY())) {
                 return goalScored(state, 1);
             }
             state.setPuckX(props.boardWidth() - r);
             state.setPuckVx(-state.getPuckVx());
+            state.setPuckVisible(true);
         }
         return TickOutcome.NONE;
     }
@@ -142,6 +160,9 @@ public class PhysicsEngine {
         state.setPuckY(props.boardHeight() / 2.0);
         state.setPuckVx(0);
         state.setPuckVy(0);
+        // El gol resetea los efectos sobre el disco: se ve y va a velocidad normal.
+        state.setPuckVisible(true);
+        state.setChaosShot(false);
     }
 
     /** Saque desde donde esté el disco, con ángulo aleatorio de ±30°. */
@@ -151,14 +172,17 @@ public class PhysicsEngine {
         state.setPuckVy(props.serveSpeed() * Math.sin(angle));
     }
 
-    private void collideWithPaddle(GameState state, double paddleX, double paddleY, int fallbackNormalX) {
+    private void collideWithPaddle(GameState state, int player) {
+        double paddleX = player == 1 ? state.getPaddle1X() : state.getPaddle2X();
+        double paddleY = player == 1 ? state.getPaddle1Y() : state.getPaddle2Y();
         double dx = state.getPuckX() - paddleX;
         double dy = state.getPuckY() - paddleY;
         double dist = Math.hypot(dx, dy);
-        double minDist = props.puckRadius() + props.paddleRadius();
+        double minDist = props.puckRadius() + paddleRadius(state, player);
         if (dist >= minDist) {
             return;
         }
+        int fallbackNormalX = player == 1 ? 1 : -1;
         double nx = dist == 0 ? fallbackNormalX : dx / dist;
         double ny = dist == 0 ? 0 : dy / dist;
 
@@ -167,9 +191,87 @@ public class PhysicsEngine {
 
         double speed = Math.hypot(state.getPuckVx(), state.getPuckVy());
         double newSpeed = Math.min(Math.max(speed, MIN_HIT_SPEED) + HIT_BOOST, props.maxPuckSpeed());
+        if (state.isChaosArmed()) {
+            // Caos: este golpe sale al doble y conserva ese tope hasta el
+            // próximo golpe o gol (capSpeed respeta el tiro caótico).
+            newSpeed = Math.min(newSpeed * 2, props.maxPuckSpeed() * CHAOS_CAP);
+            state.setChaosArmed(false);
+            state.setChaosShot(true);
+        } else {
+            state.setChaosShot(false);
+        }
         state.setPuckVx(nx * newSpeed);
         state.setPuckVy(ny * newSpeed);
+        state.setPuckVisible(true);
         keepPuckInsideBoard(state);
+    }
+
+    /** Radio efectivo de la paleta (el escudo lo dobla); 0 = estado viejo, usa el base. */
+    private double paddleRadius(GameState state, int player) {
+        double radius = player == 1 ? state.getPaddle1Radius() : state.getPaddle2Radius();
+        return radius > 0 ? radius : props.paddleRadius();
+    }
+
+    /** Rebote contra los obstáculos activos: círculos estáticos en el tablero. */
+    private void collideWithObstacles(GameState state) {
+        for (ActiveEffect effect : effects(state)) {
+            if (effect.type() != PowerType.OBSTACLE) {
+                continue;
+            }
+            double dx = state.getPuckX() - effect.x();
+            double dy = state.getPuckY() - effect.y();
+            double dist = Math.hypot(dx, dy);
+            double minDist = props.puckRadius() + effect.radius();
+            if (dist >= minDist) {
+                continue;
+            }
+            double nx = dist == 0 ? 1 : dx / dist;
+            double ny = dist == 0 ? 0 : dy / dist;
+            state.setPuckX(effect.x() + nx * minDist);
+            state.setPuckY(effect.y() + ny * minDist);
+            // Refleja la velocidad sobre la normal solo si va hacia adentro.
+            double dot = state.getPuckVx() * nx + state.getPuckVy() * ny;
+            if (dot < 0) {
+                state.setPuckVx(state.getPuckVx() - 2 * dot * nx);
+                state.setPuckVy(state.getPuckVy() - 2 * dot * ny);
+            }
+            state.setPuckVisible(true);
+            keepPuckInsideBoard(state);
+        }
+    }
+
+    /** Zonas rápidas/lentas: modulan la velocidad mientras el disco esté adentro. */
+    private void applyZones(GameState state, double dt) {
+        for (ActiveEffect effect : effects(state)) {
+            boolean inside = Math.hypot(state.getPuckX() - effect.x(),
+                    state.getPuckY() - effect.y()) <= effect.radius();
+            if (!inside) {
+                continue;
+            }
+            if (effect.type() == PowerType.FAST_ZONE) {
+                scaleVelocity(state, 1 + FAST_ZONE_ACCEL * dt);
+            } else if (effect.type() == PowerType.SLOW_ZONE) {
+                scaleVelocity(state, Math.max(0, 1 - SLOW_ZONE_BRAKE * dt));
+                enforceMinZoneSpeed(state);
+            }
+        }
+    }
+
+    private void scaleVelocity(GameState state, double factor) {
+        state.setPuckVx(state.getPuckVx() * factor);
+        state.setPuckVy(state.getPuckVy() * factor);
+    }
+
+    /** La zona lenta frena pero nunca detiene: el disco no puede quedar atrapado. */
+    private void enforceMinZoneSpeed(GameState state) {
+        double speed = Math.hypot(state.getPuckVx(), state.getPuckVy());
+        if (speed > 0 && speed < MIN_ZONE_SPEED) {
+            scaleVelocity(state, MIN_ZONE_SPEED / speed);
+        }
+    }
+
+    private List<ActiveEffect> effects(GameState state) {
+        return state.getEffects() == null ? List.of() : state.getEffects();
     }
 
     /**
@@ -198,13 +300,33 @@ public class PhysicsEngine {
         }
     }
 
+    /**
+     * Tope de velocidad dinámico: el tiro caótico permite 2x y estar
+     * dentro de una zona rápida 1.5x; el resto del tiempo aplica el
+     * máximo normal.
+     */
     private void capSpeed(GameState state) {
-        double speed = Math.hypot(state.getPuckVx(), state.getPuckVy());
-        if (speed > props.maxPuckSpeed()) {
-            double factor = props.maxPuckSpeed() / speed;
-            state.setPuckVx(state.getPuckVx() * factor);
-            state.setPuckVy(state.getPuckVy() * factor);
+        double cap = props.maxPuckSpeed();
+        if (state.isChaosShot()) {
+            cap = props.maxPuckSpeed() * CHAOS_CAP;
+        } else if (insideFastZone(state)) {
+            cap = props.maxPuckSpeed() * FAST_ZONE_CAP;
         }
+        double speed = Math.hypot(state.getPuckVx(), state.getPuckVy());
+        if (speed > cap) {
+            scaleVelocity(state, cap / speed);
+        }
+    }
+
+    private boolean insideFastZone(GameState state) {
+        for (ActiveEffect effect : effects(state)) {
+            if (effect.type() == PowerType.FAST_ZONE
+                    && Math.hypot(state.getPuckX() - effect.x(),
+                            state.getPuckY() - effect.y()) <= effect.radius()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static double clamp(double value, double min, double max) {

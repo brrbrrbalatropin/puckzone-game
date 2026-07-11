@@ -1,9 +1,13 @@
 package com.puckzone.game.room;
 
+import com.puckzone.game.power.ActiveEffect;
+import com.puckzone.game.power.PowerPickup;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 /**
  * Estado completo de una partida. Mutable a propósito: el motor de física
@@ -42,6 +46,28 @@ public class GameState {
 
     private boolean player1Connected;
     private boolean player2Connected;
+
+    /** Pickup de poder en el tablero (null si no hay); parpadea hasta su activeFrom. */
+    private PowerPickup pickup;
+
+    /** Efectos con duración activos: obstáculo, zonas y escudo (este para el HUD). */
+    private List<ActiveEffect> effects;
+
+    /** false mientras dura el disco fantasma; cualquier rebote lo revela. */
+    private boolean puckVisible;
+
+    /** Caos recogido: el próximo golpe de paleta sale al doble. */
+    private boolean chaosArmed;
+
+    /** El disco viaja a velocidad caótica (2x) hasta el próximo golpe o gol. */
+    private boolean chaosShot;
+
+    /** Radios efectivos de paleta (el escudo dobla el del dueño). */
+    private double paddle1Radius;
+    private double paddle2Radius;
+
+    /** Reloj del spawner de poderes (interno del PowerManager). */
+    private long lastPowerSpawnEpochMs;
 
     /** Epoch ms de creación de la sala; para barrer WAITING huérfanas. */
     private long createdAtEpochMs;

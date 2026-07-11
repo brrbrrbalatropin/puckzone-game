@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +65,10 @@ public class GameRoomService {
                     .paddle1Y(properties.boardHeight() / 2.0)
                     .paddle2X(properties.boardWidth() - properties.paddleRadius() * 2.0)
                     .paddle2Y(properties.boardHeight() / 2.0)
+                    .paddle1Radius(properties.paddleRadius())
+                    .paddle2Radius(properties.paddleRadius())
+                    .puckVisible(true)
+                    .effects(new ArrayList<>())
                     .createdAtEpochMs(System.currentTimeMillis())
                     .build();
             snapshot(state);
