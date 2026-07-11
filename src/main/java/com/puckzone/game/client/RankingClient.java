@@ -58,6 +58,7 @@ public class RankingClient {
         var request = new MatchResultRequest(
                 state.getGameId(),
                 state.getOpponentType() == OpponentType.BOT,
+                state.isFriendly(),
                 winner == null ? null : winner.userId(),
                 loser == null ? null : loser.userId(),
                 winner == null ? null : winner.username(),
@@ -85,7 +86,7 @@ public class RankingClient {
     }
 
     /** Contrato de POST /api/ranking/match de puckzone-ranking. */
-    record MatchResultRequest(String matchId, boolean vsBot,
+    record MatchResultRequest(String matchId, boolean vsBot, boolean friendly,
                               String winnerId, String loserId,
                               String winnerUsername, String loserUsername,
                               String winnerUniversity, String loserUniversity,

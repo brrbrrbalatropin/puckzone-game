@@ -29,6 +29,8 @@ public class GameState {
     private Player player1;
     private Player player2;
     private OpponentType opponentType;
+    /** Sala privada entre amigos: se juega igual pero no mueve ELO ni V-D. */
+    private boolean friendly;
     private GameStatus status;
 
     private double puckX;

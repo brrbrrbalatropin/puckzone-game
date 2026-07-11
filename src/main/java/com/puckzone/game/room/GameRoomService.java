@@ -51,13 +51,15 @@ public class GameRoomService {
      * da el motor cuando la partida pasa a PLAYING). Idempotente: si la
      * sala ya existe (reintento de matchmaking) se devuelve la existente.
      */
-    public GameState create(String matchId, Player player1, Player player2, OpponentType opponentType) {
+    public GameState create(String matchId, Player player1, Player player2,
+                            OpponentType opponentType, boolean friendly) {
         return rooms.computeIfAbsent(matchId, id -> {
             var state = GameState.builder()
                     .gameId(id)
                     .player1(player1)
                     .player2(player2)
                     .opponentType(opponentType)
+                    .friendly(friendly)
                     .status(GameStatus.WAITING)
                     .puckX(properties.boardWidth() / 2.0)
                     .puckY(properties.boardHeight() / 2.0)
@@ -72,7 +74,8 @@ public class GameRoomService {
                     .createdAtEpochMs(System.currentTimeMillis())
                     .build();
             snapshot(state);
-            log.info("Sala {} creada: {} vs {}", id, player1.username(),
+            log.info("Sala {}{} creada: {} vs {}", id, friendly ? " (amistosa)" : "",
+                    player1.username(),
                     opponentType == OpponentType.BOT ? "BOT" : player2.username());
             return state;
         });

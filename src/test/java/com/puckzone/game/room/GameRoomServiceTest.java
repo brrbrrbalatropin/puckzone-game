@@ -37,7 +37,7 @@ class GameRoomServiceTest {
         return service.create(id,
                 new Player("p1-" + id, "daniel", "escuelaing"),
                 new Player("p2-" + id, "rival", "unal"),
-                OpponentType.HUMAN);
+                OpponentType.HUMAN, false);
     }
 
     @Test
