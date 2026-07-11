@@ -53,8 +53,18 @@ public class GameState {
     /** Efectos con duración activos: obstáculo, zonas y escudo (este para el HUD). */
     private List<ActiveEffect> effects;
 
-    /** false mientras dura el disco fantasma; cualquier rebote lo revela. */
+    /**
+     * false mientras el disco fantasma está oculto. Con el fantasma
+     * activo, cada contacto lo destella visible un instante (el flash) y
+     * vuelve a ocultarse; sin fantasma siempre es true.
+     */
     private boolean puckVisible;
+
+    /** Hasta cuándo dura el disco fantasma (0 = sin fantasma). */
+    private long ghostUntilEpochMs;
+
+    /** Fin del destello post-rebote durante el fantasma (lo apaga el PowerManager). */
+    private long ghostFlashUntilEpochMs;
 
     /** Caos recogido: el próximo golpe de paleta sale al doble. */
     private boolean chaosArmed;

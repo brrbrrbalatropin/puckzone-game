@@ -134,8 +134,23 @@ class PhysicsEngineTest {
     }
 
     @Test
-    void cualquierReboteRevelaElDiscoFantasma() {
+    void sinFantasmaActivoElReboteRevelaDelTodo() {
         var state = playing();
+        state.setPuckVisible(false); // estado heredado, sin fantasma corriendo
+        state.setPuckY(20);
+        state.setPuckVx(50);
+        state.setPuckVy(-200);
+
+        engine.tick(state, 0.1); // rebota en la pared superior
+
+        assertTrue(state.isPuckVisible(), "el rebote debía revelar el disco");
+        assertEquals(0, state.getGhostFlashUntilEpochMs(), "sin fantasma no hay destello que armar");
+    }
+
+    @Test
+    void duranteElFantasmaElReboteSoloDestellaElDisco() {
+        var state = playing();
+        state.setGhostUntilEpochMs(System.currentTimeMillis() + 10_000);
         state.setPuckVisible(false);
         state.setPuckY(20);
         state.setPuckVx(50);
@@ -143,7 +158,9 @@ class PhysicsEngineTest {
 
         engine.tick(state, 0.1); // rebota en la pared superior
 
-        assertTrue(state.isPuckVisible(), "el rebote debía revelar el disco fantasma");
+        assertTrue(state.isPuckVisible(), "el rebote debía destellar el disco");
+        assertTrue(state.getGhostFlashUntilEpochMs() > 0,
+                "el destello debía quedar armado para que el PowerManager lo apague");
     }
 
     @Test

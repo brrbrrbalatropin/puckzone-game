@@ -20,6 +20,9 @@ public record PowerProperties(
         @DefaultValue("8") int effectDurationSeconds,
         @DefaultValue("18") int pickupRadius,
         @DefaultValue("35") int obstacleRadius,
-        @DefaultValue("80") int zoneRadius
+        @DefaultValue("80") int zoneRadius,
+        // El disco fantasma dura un tiempo aleatorio dentro de este rango.
+        @DefaultValue("10") int ghostMinSeconds,
+        @DefaultValue("15") int ghostMaxSeconds
 ) {
 }

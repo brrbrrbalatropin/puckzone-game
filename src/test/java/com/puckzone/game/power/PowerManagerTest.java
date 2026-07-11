@@ -26,8 +26,8 @@ class PowerManagerTest {
 
     private final GameProperties gameProps =
             new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 60, 300);
-    /** Spawn cada 12s, parpadeo 2s, vida 10s, efectos de 8s. */
-    private final PowerProperties props = new PowerProperties(12, 2, 10, 8, 18, 35, 80);
+    /** Spawn cada 12s, parpadeo 2s, vida 10s, efectos de 8s, fantasma 10-15s. */
+    private final PowerProperties props = new PowerProperties(12, 2, 10, 8, 18, 35, 80, 10, 15);
     private final PowerManager manager = new PowerManager(props, gameProps);
 
     private GameState playing() {
@@ -93,13 +93,44 @@ class PowerManagerTest {
     }
 
     @Test
-    void recogerElFantasmaOcultaElDisco() {
+    void recogerElFantasmaOcultaElDiscoPorUnaDuracionAleatoria() {
         var state = playing();
         state.setPickup(collectible(PowerType.GHOST_PUCK, 740, 250)); // lo toca la paleta 2
 
         manager.tick(state, T0);
 
         assertFalse(state.isPuckVisible(), "el disco debía quedar invisible");
+        assertTrue(state.getGhostUntilEpochMs() >= T0 + 10_000
+                        && state.getGhostUntilEpochMs() <= T0 + 15_000,
+                "la duración debía caer en el rango aleatorio 10-15s");
+        assertEquals(PowerType.GHOST_PUCK, state.getEffects().get(0).type(),
+                "falta la entrada para el badge del HUD");
+    }
+
+    @Test
+    void elDestelloDelReboteSeApagaSoloYElDiscoVuelveAOcultarse() {
+        var state = playing();
+        state.setGhostUntilEpochMs(T0 + 10_000);
+        state.setGhostFlashUntilEpochMs(T0 + 250); // un rebote acaba de destellar
+        state.setPuckVisible(true);
+
+        manager.tick(state, T0 + 100);
+        assertTrue(state.isPuckVisible(), "el destello debía seguir encendido");
+
+        manager.tick(state, T0 + 300);
+        assertFalse(state.isPuckVisible(), "pasado el destello debía volver a ocultarse");
+    }
+
+    @Test
+    void alVencerLaDuracionElDiscoVuelveASerVisible() {
+        var state = playing();
+        state.setGhostUntilEpochMs(T0 + 5_000);
+        state.setPuckVisible(false);
+
+        manager.tick(state, T0 + 5_000);
+
+        assertTrue(state.isPuckVisible(), "vencido el fantasma el disco debía reaparecer");
+        assertEquals(0, state.getGhostUntilEpochMs());
     }
 
     @Test

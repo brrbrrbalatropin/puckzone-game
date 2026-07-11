@@ -35,11 +35,31 @@ public class PowerManager {
     /** Un paso del sistema de poderes. Recibe el reloj para ser testeable. */
     public void tick(GameState state, long now) {
         expireEffects(state, now);
+        tickGhost(state, now);
         if (state.getPickup() == null) {
             maybeSpawn(state, now);
         } else {
             resolvePickup(state, now);
         }
+    }
+
+    /**
+     * Gobierna la visibilidad durante el disco fantasma: oculto por
+     * defecto, visible solo durante el destello brevísimo que deja cada
+     * rebote (lo enciende el motor), y de vuelta a la normalidad cuando
+     * la duración del fantasma se agota.
+     */
+    private void tickGhost(GameState state, long now) {
+        if (state.getGhostUntilEpochMs() == 0) {
+            return;
+        }
+        if (now >= state.getGhostUntilEpochMs()) {
+            state.setGhostUntilEpochMs(0);
+            state.setGhostFlashUntilEpochMs(0);
+            state.setPuckVisible(true);
+            return;
+        }
+        state.setPuckVisible(now < state.getGhostFlashUntilEpochMs());
     }
 
     /** Vence efectos; el escudo restaura el radio de la paleta del dueño. */
@@ -129,9 +149,24 @@ public class PowerManager {
             case SLOW_ZONE -> state.getEffects().add(new ActiveEffect(PowerType.SLOW_ZONE,
                     collector, pickup.x(), pickup.y(), props.zoneRadius(), expiresAt));
             case SHIELD -> applyShield(state, collector, expiresAt);
-            case GHOST_PUCK -> state.setPuckVisible(false);
+            case GHOST_PUCK -> applyGhost(state, collector, now);
             case CHAOS -> state.setChaosArmed(true);
         }
+    }
+
+    /**
+     * Disco fantasma por una duración aleatoria dentro del rango
+     * configurado. La entrada en effects es solo para el HUD (el badge y
+     * su vencimiento); la visibilidad la gobierna {@link #tickGhost}.
+     */
+    private void applyGhost(GameState state, int owner, long now) {
+        long duration = ThreadLocalRandom.current().nextLong(
+                props.ghostMinSeconds() * 1000L, props.ghostMaxSeconds() * 1000L + 1);
+        state.setGhostUntilEpochMs(now + duration);
+        state.setGhostFlashUntilEpochMs(0);
+        state.setPuckVisible(false);
+        state.getEffects().removeIf(effect -> effect.type() == PowerType.GHOST_PUCK);
+        state.getEffects().add(new ActiveEffect(PowerType.GHOST_PUCK, owner, 0, 0, 0, now + duration));
     }
 
     /**

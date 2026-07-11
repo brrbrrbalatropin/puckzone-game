@@ -30,10 +30,16 @@ public class PhysicsEngine {
     private static final double MIN_HIT_SPEED = 350;
     /** Semiapertura del ángulo aleatorio de saque (grados). */
     private static final double SERVE_ANGLE = 30;
-    /** Zona rápida: aceleración proporcional por segundo dentro de la zona. */
-    private static final double FAST_ZONE_ACCEL = 1.2;
+    /**
+     * Zona rápida: aceleración proporcional por segundo dentro de la zona.
+     * Agresiva a propósito: el disco cruza la zona en ~0.3s y con tasas
+     * tímidas el efecto no se sentía en el juego real.
+     */
+    private static final double FAST_ZONE_ACCEL = 4.0;
     /** Zona lenta: frenado proporcional por segundo dentro de la zona. */
-    private static final double SLOW_ZONE_BRAKE = 0.8;
+    private static final double SLOW_ZONE_BRAKE = 2.5;
+    /** Durante el fantasma, cada rebote destella el disco visible este instante. */
+    private static final long GHOST_FLASH_MS = 250;
     /** La zona lenta nunca deja el disco más lento que esto (px/s). */
     private static final double MIN_ZONE_SPEED = 120;
     /** Multiplicadores del tope de velocidad para caos y zona rápida. */
@@ -98,11 +104,11 @@ public class PhysicsEngine {
         if (state.getPuckY() - r < 0) {
             state.setPuckY(r);
             state.setPuckVy(-state.getPuckVy());
-            state.setPuckVisible(true);
+            revealPuck(state);
         } else if (state.getPuckY() + r > props.boardHeight()) {
             state.setPuckY(props.boardHeight() - r);
             state.setPuckVy(-state.getPuckVy());
-            state.setPuckVisible(true);
+            revealPuck(state);
         }
     }
 
@@ -118,14 +124,14 @@ public class PhysicsEngine {
             }
             state.setPuckX(r);
             state.setPuckVx(-state.getPuckVx());
-            state.setPuckVisible(true);
+            revealPuck(state);
         } else if (state.getPuckX() + r >= props.boardWidth()) {
             if (inGoalMouth(state.getPuckY())) {
                 return goalScored(state, 1);
             }
             state.setPuckX(props.boardWidth() - r);
             state.setPuckVx(-state.getPuckVx());
-            state.setPuckVisible(true);
+            revealPuck(state);
         }
         return TickOutcome.NONE;
     }
@@ -160,9 +166,15 @@ public class PhysicsEngine {
         state.setPuckY(props.boardHeight() / 2.0);
         state.setPuckVx(0);
         state.setPuckVy(0);
-        // El gol resetea los efectos sobre el disco: se ve y va a velocidad normal.
+        // El gol resetea los efectos sobre el disco: se ve, va a velocidad
+        // normal y el fantasma termina (rally nuevo, disco visible).
         state.setPuckVisible(true);
         state.setChaosShot(false);
+        state.setGhostUntilEpochMs(0);
+        state.setGhostFlashUntilEpochMs(0);
+        if (state.getEffects() != null) {
+            state.getEffects().removeIf(effect -> effect.type() == PowerType.GHOST_PUCK);
+        }
     }
 
     /** Saque desde donde esté el disco, con ángulo aleatorio de ±30°. */
@@ -202,8 +214,22 @@ public class PhysicsEngine {
         }
         state.setPuckVx(nx * newSpeed);
         state.setPuckVy(ny * newSpeed);
-        state.setPuckVisible(true);
+        revealPuck(state);
         keepPuckInsideBoard(state);
+    }
+
+    /**
+     * Un contacto revela el disco: del todo si no hay fantasma activo, o
+     * como un destello brevísimo que insinúa la dirección mientras el
+     * fantasma dure (el PowerManager lo vuelve a ocultar al expirar el
+     * destello).
+     */
+    private void revealPuck(GameState state) {
+        state.setPuckVisible(true);
+        long now = System.currentTimeMillis();
+        if (now < state.getGhostUntilEpochMs()) {
+            state.setGhostFlashUntilEpochMs(now + GHOST_FLASH_MS);
+        }
     }
 
     /** Radio efectivo de la paleta (el escudo lo dobla); 0 = estado viejo, usa el base. */
@@ -235,7 +261,7 @@ public class PhysicsEngine {
                 state.setPuckVx(state.getPuckVx() - 2 * dot * nx);
                 state.setPuckVy(state.getPuckVy() - 2 * dot * ny);
             }
-            state.setPuckVisible(true);
+            revealPuck(state);
             keepPuckInsideBoard(state);
         }
     }
