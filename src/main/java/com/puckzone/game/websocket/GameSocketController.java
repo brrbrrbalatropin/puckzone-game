@@ -2,9 +2,11 @@ package com.puckzone.game.websocket;
 
 import com.puckzone.game.physics.PhysicsEngine;
 import com.puckzone.game.room.GameEndService;
+import com.puckzone.game.room.GameRoomRemovedEvent;
 import com.puckzone.game.room.GameRoomService;
 import com.puckzone.game.room.GameState;
 import com.puckzone.game.room.GameStatus;
+import org.springframework.context.event.EventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -141,6 +143,12 @@ public class GameSocketController {
             messaging.convertAndSend("/topic/game/" + gameId + "/emotes",
                     new EmoteBroadcast(userId, message.emote()));
         });
+    }
+
+    /** La sala salió del mapa: fuera también sus cooldowns de emote. */
+    @EventListener
+    public void onRoomRemoved(GameRoomRemovedEvent event) {
+        lastEmoteAt.keySet().removeIf(key -> key.startsWith(event.gameId() + ":"));
     }
 
     private int playerNumber(GameState state, String userId) {

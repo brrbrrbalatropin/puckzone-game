@@ -36,6 +36,8 @@ public class GameLoop {
     private final GameProperties props;
     private final GameEndService gameEnd;
     private ScheduledExecutorService executor;
+    /** Último barrido de salas viejas; corre ~1 vez/s, no en cada tick. */
+    private long lastCleanupEpochMs;
 
     public GameLoop(GameRoomService rooms, PhysicsEngine engine, BotPaddle bot,
                     SimpMessagingTemplate messaging, GameProperties props,
@@ -88,6 +90,21 @@ public class GameLoop {
             }
         }
         closeExpiredPauses();
+        cleanupOncePerSecond();
+    }
+
+    /** Barre FINISHED retenidas y WAITING huérfanas (la limpieza no tiene afán). */
+    private void cleanupOncePerSecond() {
+        long now = System.currentTimeMillis();
+        if (now - lastCleanupEpochMs < 1000) {
+            return;
+        }
+        lastCleanupEpochMs = now;
+        try {
+            rooms.cleanupExpired(now);
+        } catch (RuntimeException e) {
+            log.error("El barrido de salas falló: {}", e.getMessage());
+        }
     }
 
     /**

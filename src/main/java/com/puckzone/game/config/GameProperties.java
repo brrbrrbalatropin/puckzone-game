@@ -20,6 +20,12 @@ public record GameProperties(
         @DefaultValue("30") int paddleRadius,
         @DefaultValue("900") double maxPuckSpeed,
         @DefaultValue("300") double serveSpeed,
-        @DefaultValue("30") int disconnectGraceSeconds
+        @DefaultValue("30") int disconnectGraceSeconds,
+        // Cuánto vive una sala FINISHED en memoria (para que un jugador que
+        // llegue tarde aún reciba el estado final) antes de que el barrido
+        // la elimine. Redis conserva el snapshot con su propio TTL.
+        @DefaultValue("60") int finishedRetentionSeconds,
+        // Una WAITING más vieja que esto es huérfana (alguien nunca entró).
+        @DefaultValue("300") int waitingTimeoutSeconds
 ) {
 }

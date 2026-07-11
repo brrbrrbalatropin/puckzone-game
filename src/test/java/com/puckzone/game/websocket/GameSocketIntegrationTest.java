@@ -47,9 +47,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * inputs de paleta se aplican validados. Sin token no hay conexión.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        // Ventana de gracia corta para poder probar el cierre por abandono
-        // sin esperar los 30s reales (la reconexión del test tarda ~100ms).
-        properties = "puckzone.game.disconnect-grace-seconds=2")
+        // Tiempos cortos para probar abandono y barrido sin esperar los
+        // reales (la reconexión del test tarda ~100ms, no choca con 2s).
+        // Deben ser IDÉNTICOS a los de ActiveGameEndpointTest para que las
+        // dos clases compartan el contexto de Spring cacheado.
+        properties = {
+                "puckzone.game.disconnect-grace-seconds=2",
+                "puckzone.game.finished-retention-seconds=1"})
 class GameSocketIntegrationTest {
 
     /** Mismo default dev que application.yaml (y que auth/matchmaking/gateway). */
@@ -185,6 +189,26 @@ class GameSocketIntegrationTest {
         assertNotNull(finished, "la rendición no terminó la partida");
         assertEquals(PLAYER2_ID, finished.getWinnerId(), "debía ganar el rival del que se rinde");
         assertEquals(FinishReason.SURRENDER, finished.getFinishReason());
+    }
+
+    @Test
+    void laSalaTerminadaSeBarreDelMapaTrasLaRetencion() throws Exception {
+        session1 = connectAs(PLAYER1_ID, "daniel");
+        session2 = connectAs(PLAYER2_ID, "rival");
+        subscribeToGame(session1);
+        join(session1);
+        join(session2);
+        assertNotNull(awaitState(state -> state.getStatus() == GameStatus.PLAYING));
+
+        session1.send("/app/game/" + gameId + "/surrender", Map.of());
+        assertNotNull(awaitState(state -> state.getStatus() == GameStatus.FINISHED));
+
+        // Con retención de 1s (properties del test), el loop la barre solo
+        long deadline = System.currentTimeMillis() + 5_000;
+        while (System.currentTimeMillis() < deadline && rooms.find(gameId).isPresent()) {
+            Thread.sleep(100);
+        }
+        assertTrue(rooms.find(gameId).isEmpty(), "la sala FINISHED no se barrió del mapa");
     }
 
     @Test

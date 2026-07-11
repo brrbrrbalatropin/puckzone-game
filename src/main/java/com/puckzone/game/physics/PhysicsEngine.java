@@ -130,6 +130,7 @@ public class PhysicsEngine {
             state.setWinnerId(state.getScore1() > state.getScore2()
                     ? state.getPlayer1().userId()
                     : state.getPlayer2() == null ? null : state.getPlayer2().userId());
+            state.setFinishedAtEpochMs(System.currentTimeMillis());
             return TickOutcome.FINISHED;
         }
         serve(state, scorer == 2 ? -1 : 1);

@@ -43,8 +43,14 @@ public class GameState {
     private boolean player1Connected;
     private boolean player2Connected;
 
+    /** Epoch ms de creación de la sala; para barrer WAITING huérfanas. */
+    private long createdAtEpochMs;
+
     /** Epoch ms del arranque (paso a PLAYING); para la duración del reporte a ranking. */
     private long startedAtEpochMs;
+
+    /** Epoch ms del fin (paso a FINISHED); arranca la retención antes del barrido. */
+    private long finishedAtEpochMs;
 
     /**
      * Epoch ms hasta el que se espera la reconexión del jugador caído

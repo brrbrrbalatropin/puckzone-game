@@ -73,6 +73,7 @@ public class GameEndService {
         state.setWinnerId(winnerId);
         state.setFinishReason(reason);
         state.setGraceDeadlineEpochMs(0);
+        state.setFinishedAtEpochMs(System.currentTimeMillis());
         rooms.snapshot(state);
         messaging.convertAndSend("/topic/game/" + state.getGameId(), state);
         if (report) {

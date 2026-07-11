@@ -22,7 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         // Mismas properties que GameSocketIntegrationTest para compartir
         // el contexto de Spring cacheado entre las dos clases.
-        properties = "puckzone.game.disconnect-grace-seconds=2")
+        properties = {
+                "puckzone.game.disconnect-grace-seconds=2",
+                "puckzone.game.finished-retention-seconds=1"})
 class ActiveGameEndpointTest {
 
     /** Mismo default dev que application.yaml (y que auth/matchmaking/gateway). */

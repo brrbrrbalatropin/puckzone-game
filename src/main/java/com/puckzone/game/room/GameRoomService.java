@@ -3,6 +3,7 @@ package com.puckzone.game.room;
 import com.puckzone.game.config.GameProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -34,10 +35,13 @@ public class GameRoomService {
     private final Map<String, String> sessionsByUser = new ConcurrentHashMap<>();
     private final GameProperties properties;
     private final GameStateRepository repository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public GameRoomService(GameProperties properties, GameStateRepository repository) {
+    public GameRoomService(GameProperties properties, GameStateRepository repository,
+                           ApplicationEventPublisher eventPublisher) {
         this.properties = properties;
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -60,6 +64,7 @@ public class GameRoomService {
                     .paddle1Y(properties.boardHeight() / 2.0)
                     .paddle2X(properties.boardWidth() - properties.paddleRadius() * 2.0)
                     .paddle2Y(properties.boardHeight() / 2.0)
+                    .createdAtEpochMs(System.currentTimeMillis())
                     .build();
             snapshot(state);
             log.info("Sala {} creada: {} vs {}", id, player1.username(),
@@ -169,6 +174,33 @@ public class GameRoomService {
     private boolean isPlayer(GameState state, String userId) {
         return state.getPlayer1().userId().equals(userId)
                 || (state.getPlayer2() != null && state.getPlayer2().userId().equals(userId));
+    }
+
+    /**
+     * Barrido del mapa en memoria (lo invoca el game loop ~1 vez/s): salen
+     * las FINISHED que agotaron su retención — se retienen un rato para
+     * que un jugador que llegue tarde aún reciba el estado final — y las
+     * WAITING huérfanas donde alguien nunca entró. Redis no se toca: su
+     * snapshot es el respaldo consultable y expira por TTL. Por cada sala
+     * eliminada se publica {@link GameRoomRemovedEvent} para que otros
+     * limpien su estado asociado.
+     */
+    public void cleanupExpired(long nowEpochMs) {
+        long finishedCutoff = nowEpochMs - properties.finishedRetentionSeconds() * 1000L;
+        long waitingCutoff = nowEpochMs - properties.waitingTimeoutSeconds() * 1000L;
+        rooms.values().removeIf(state -> {
+            boolean expired = switch (state.getStatus()) {
+                case FINISHED -> state.getFinishedAtEpochMs() > 0
+                        && state.getFinishedAtEpochMs() <= finishedCutoff;
+                case WAITING -> state.getCreatedAtEpochMs() <= waitingCutoff;
+                default -> false;
+            };
+            if (expired) {
+                log.info("Sala {} eliminada del mapa ({})", state.getGameId(), state.getStatus());
+                eventPublisher.publishEvent(new GameRoomRemovedEvent(state.getGameId()));
+            }
+            return expired;
+        });
     }
 
     /** Foto a Redis, best-effort: si Redis no está, el juego sigue. */

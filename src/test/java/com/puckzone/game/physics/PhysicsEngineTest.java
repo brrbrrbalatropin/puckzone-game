@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PhysicsEngineTest {
 
     private final GameProperties props =
-            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30);
+            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 60, 300);
     private final PhysicsEngine engine = new PhysicsEngine(props);
 
     private GameState playing() {
