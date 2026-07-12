@@ -9,6 +9,17 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+  # game_db: amigos y mensajes directos. En Azure la URL completa llega por
+  # env var (con sslmode=require); en local apunta al Postgres nativo 5432.
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/game_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
 management:
   endpoints:
     web:
