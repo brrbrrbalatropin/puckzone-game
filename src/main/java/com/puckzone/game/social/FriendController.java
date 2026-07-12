@@ -36,10 +36,13 @@ public class FriendController {
     }
 
     private final FriendService friends;
+    private final DirectMessageService directMessages;
     private final JwtTokenParser tokenParser;
 
-    public FriendController(FriendService friends, JwtTokenParser tokenParser) {
+    public FriendController(FriendService friends, DirectMessageService directMessages,
+                            JwtTokenParser tokenParser) {
         this.friends = friends;
+        this.directMessages = directMessages;
         this.tokenParser = tokenParser;
     }
 
@@ -73,6 +76,14 @@ public class FriendController {
             @PathVariable long friendshipId) {
         friends.deleteRelation(requireUser(authorization), friendshipId);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Conversación con un amigo (últimos 50, cronológico) al abrir el chat. */
+    @GetMapping("/{friendUserId}/messages")
+    public List<DirectMessageService.MessageView> messages(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable String friendUserId) {
+        return directMessages.history(requireUser(authorization), friendUserId);
     }
 
     @GetMapping("/search")
