@@ -6,12 +6,15 @@ package com.puckzone.game.room;
  * {@code friendly} marca las salas privadas entre amigos: la partida corre
  * idéntica pero al reportarla ranking no mueve ELO ni V-D (los payloads de
  * la cola normal no traen el campo y caen a false).
+ * {@code player1Rating} es el ELO del jugador (lo envía matchmaking) y solo
+ * se usa para elegir el nivel del bot; si no llega se asume el inicial 1200.
  */
 public record CreateGameRequest(
         String matchId,
         Player player1,
         Player player2,
         OpponentType opponentType,
-        boolean friendly
+        boolean friendly,
+        Integer player1Rating
 ) {
 }

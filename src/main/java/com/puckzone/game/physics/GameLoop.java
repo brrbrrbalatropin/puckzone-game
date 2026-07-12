@@ -1,6 +1,6 @@
 package com.puckzone.game.physics;
 
-import com.puckzone.game.bot.BotPaddle;
+import com.puckzone.game.bot.BotBrain;
 import com.puckzone.game.config.GameProperties;
 import com.puckzone.game.power.PowerManager;
 import com.puckzone.game.room.GameEndService;
@@ -32,7 +32,7 @@ public class GameLoop {
 
     private final GameRoomService rooms;
     private final PhysicsEngine engine;
-    private final BotPaddle bot;
+    private final BotBrain bot;
     private final PowerManager powers;
     private final SimpMessagingTemplate messaging;
     private final GameProperties props;
@@ -41,7 +41,7 @@ public class GameLoop {
     /** Último barrido de salas viejas; corre ~1 vez/s, no en cada tick. */
     private long lastCleanupEpochMs;
 
-    public GameLoop(GameRoomService rooms, PhysicsEngine engine, BotPaddle bot,
+    public GameLoop(GameRoomService rooms, PhysicsEngine engine, BotBrain bot,
                     PowerManager powers, SimpMessagingTemplate messaging,
                     GameProperties props, GameEndService gameEnd) {
         this.rooms = rooms;

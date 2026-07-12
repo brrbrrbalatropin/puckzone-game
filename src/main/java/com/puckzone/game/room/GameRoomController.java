@@ -37,7 +37,8 @@ public class GameRoomController {
             return ResponseEntity.badRequest().body(Map.of("error", "Solicitud de partida incompleta"));
         }
         var state = roomService.create(request.matchId(), request.player1(),
-                request.player2(), request.opponentType(), request.friendly());
+                request.player2(), request.opponentType(), request.friendly(),
+                request.player1Rating());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("gameId", state.getGameId(), "status", state.getStatus()));
     }

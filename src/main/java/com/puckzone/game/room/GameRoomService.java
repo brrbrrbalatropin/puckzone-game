@@ -1,5 +1,6 @@
 package com.puckzone.game.room;
 
+import com.puckzone.game.bot.BotProfile;
 import com.puckzone.game.config.GameProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,12 +53,14 @@ public class GameRoomService {
      * sala ya existe (reintento de matchmaking) se devuelve la existente.
      */
     public GameState create(String matchId, Player player1, Player player2,
-                            OpponentType opponentType, boolean friendly) {
+                            OpponentType opponentType, boolean friendly, Integer player1Rating) {
         return rooms.computeIfAbsent(matchId, id -> {
             var state = GameState.builder()
                     .gameId(id)
                     .player1(player1)
                     .player2(player2)
+                    .botLevel(opponentType == OpponentType.BOT
+                            ? BotProfile.levelForElo(player1Rating) : 0)
                     .opponentType(opponentType)
                     .friendly(friendly)
                     .status(GameStatus.WAITING)

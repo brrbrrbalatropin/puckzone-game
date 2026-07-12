@@ -31,6 +31,8 @@ public class GameState {
     private OpponentType opponentType;
     /** Sala privada entre amigos: se juega igual pero no mueve ELO ni V-D. */
     private boolean friendly;
+    /** Nivel del bot 1-9 (según el ELO del jugador); 0 en salas humanas. */
+    private int botLevel;
     private GameStatus status;
 
     private double puckX;

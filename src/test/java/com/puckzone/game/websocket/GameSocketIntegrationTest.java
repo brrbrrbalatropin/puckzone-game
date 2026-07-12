@@ -81,7 +81,7 @@ class GameSocketIntegrationTest {
         rooms.create(gameId,
                 new Player(PLAYER1_ID, "daniel", "escuelaing"),
                 new Player(PLAYER2_ID, "rival", "unal"),
-                OpponentType.HUMAN, false);
+                OpponentType.HUMAN, false, null);
 
         stompClient = new WebSocketStompClient(new StandardWebSocketClient());
         stompClient.setMessageConverter(new JacksonJsonMessageConverter());

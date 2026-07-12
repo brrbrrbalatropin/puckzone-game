@@ -52,3 +52,18 @@ puckzone:
     paddle-radius: 30
     max-puck-speed: 900    # px/s, tope para que el disco no se vuelva injugable
     serve-speed: 300       # px/s con los que sale el disco en cada saque
+
+    # Bot adaptativo: tres anclas (1, 4 y 9) y el resto se interpola.
+    # El NIVEL 4 es el bot clásico que solo sigue el disco (~220 px/s),
+    # el que validaron los primeros jugadores: rival de la banda 1200-1349.
+    bot:
+      default-level: 4             # cuando no llega rating (equivale a ELO 1200)
+      level1-speed: 120            # px/s de la paleta
+      level4-speed: 220
+      level9-speed: 550
+      level1-reaction-millis: 350  # cada cuánto "mira" el disco
+      level4-reaction-millis: 80
+      level9-reaction-millis: 30
+      level1-aim-error-px: 45      # σ del ruido de puntería
+      level4-aim-error-px: 6
+      level9-aim-error-px: 3

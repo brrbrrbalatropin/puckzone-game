@@ -55,7 +55,7 @@ class ActiveGameEndpointTest {
         rooms.create(gameId,
                 new Player(me, "daniel", "escuelaing"),
                 new Player(UUID.randomUUID().toString(), "rival", "unal"),
-                OpponentType.HUMAN, false);
+                OpponentType.HUMAN, false, null);
 
         var response = get(tokenFor(me));
 
