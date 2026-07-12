@@ -17,6 +17,20 @@ resource "azurerm_container_app" "game" {
       cpu    = 0.5
       memory = "1Gi"
 
+      # game_db (amigos y mensajes directos). La URL completa via env var
+      # porque Azure Flexible Server exige TLS: sslmode=require.
+      env {
+        name  = "SPRING_DATASOURCE_URL"
+        value = "jdbc:postgresql://${data.terraform_remote_state.base.outputs.postgres_fqdn}:5432/game_db?sslmode=require"
+      }
+      env {
+        name  = "SPRING_DATASOURCE_USERNAME"
+        value = data.terraform_remote_state.base.outputs.postgres_admin_login
+      }
+      env {
+        name        = "SPRING_DATASOURCE_PASSWORD"
+        secret_name = "db-password"
+      }
       env {
         name  = "SPRING_DATA_REDIS_HOST"
         value = data.terraform_remote_state.base.outputs.redis_host
@@ -66,6 +80,10 @@ resource "azurerm_container_app" "game" {
   secret {
     name  = "jwt-secret"
     value = data.terraform_remote_state.base.outputs.jwt_secret
+  }
+  secret {
+    name  = "db-password"
+    value = data.terraform_remote_state.base.outputs.postgres_admin_password
   }
 
   # Interno: solo el gateway (en el mismo environment) le habla; nada de internet.
