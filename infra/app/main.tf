@@ -64,15 +64,22 @@ resource "azurerm_container_app" "game" {
         value = "https://puckzone-frontend.calmgrass-8fe4a577.eastus.azurecontainerapps.io,http://localhost:5173,http://localhost:8080"
       }
 
+      # Con JPA el arranque pasó de ~25s a ~40s: sin initial_delay la
+      # liveness (default ACA ~1s + 3 fallos x10s) mataba el contenedor a
+      # los ~30s en bucle infinito, siempre justo antes de que Tomcat
+      # abriera el puerto (visto 2026-07-12 en las revisiones 24-27).
       liveness_probe {
-        transport = "HTTP"
-        port      = 8083
-        path      = "/actuator/health/liveness"
+        transport     = "HTTP"
+        port          = 8083
+        path          = "/actuator/health/liveness"
+        initial_delay = 60
       }
       readiness_probe {
-        transport = "HTTP"
-        port      = 8083
-        path      = "/actuator/health/readiness"
+        transport               = "HTTP"
+        port                    = 8083
+        path                    = "/actuator/health/readiness"
+        initial_delay           = 20
+        failure_count_threshold = 10
       }
     }
   }
