@@ -47,3 +47,26 @@ resource "azurerm_postgresql_flexible_server_database" "databases" {
   charset   = "UTF8"
   collation = "en_US.utf8"
 }
+
+# --- Endurecimiento de seguridad (hallazgos Trivy AZU-0019/0021/0024/0026) ---
+# Parametros de servidor. Los servicios ya conectan con sslmode=require; esto lo
+# fuerza tambien del lado del servidor (rechaza cualquier conexion sin TLS) y
+# habilita el logging de auditoria. require_secure_transport y ssl_min_protocol_version
+# son estaticos: aplicarlos reinicia el servidor una vez (segundos de corte).
+locals {
+  postgres_config = {
+    "require_secure_transport" = "on"      # rechaza conexiones sin TLS (AZU-0026)
+    "ssl_min_protocol_version" = "TLSv1.2" # prohibe TLS 1.0/1.1 (AZU-0026)
+    "log_connections"          = "on"      # audita conexiones (AZU-0019)
+    "log_disconnections"       = "on"      # audita cierres de conexion
+    "log_checkpoints"          = "on"      # visibilidad de checkpoints (AZU-0024)
+    "connection_throttle.enable" = "on"    # throttling anti abuso (AZU-0021)
+  }
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "hardening" {
+  for_each  = local.postgres_config
+  name      = each.key
+  server_id = azurerm_postgresql_flexible_server.main.id
+  value     = each.value
+}
