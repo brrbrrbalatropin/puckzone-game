@@ -14,8 +14,12 @@ resource "azurerm_container_app" "game" {
     container {
       name   = "game"
       image  = var.image
-      cpu    = 0.5
-      memory = "1Gi"
+      # 1 vCPU tras la prueba de carga del 2026-07-14: con 0.5 vCPU el loop
+      # de fisica (un hilo a 60Hz para todas las salas) saturaba con 10
+      # partidas simultaneas (salas a 32Hz, p95 84ms); con 1 vCPU las 20
+      # partidas del KPI corren a 60Hz con p99 21ms y ~70% de CPU.
+      cpu    = 1.0
+      memory = "2Gi"
 
       # game_db (amigos y mensajes directos). La URL completa via env var
       # porque Azure Flexible Server exige TLS: sslmode=require.
