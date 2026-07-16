@@ -94,8 +94,19 @@ public class PowerManager {
         }
         var random = ThreadLocalRandom.current();
         PowerType type = PowerType.values()[random.nextInt(PowerType.values().length)];
+        // Alterna mitades del tablero: el azar puro agrupaba varios pickups
+        // seguidos en el mismo lado y se sentía injusto. El primero cae en
+        // una mitad al azar; cada siguiente, en la contraria del anterior.
+        int half = switch (state.getLastPickupHalf()) {
+            case 1 -> 2;
+            case 2 -> 1;
+            default -> random.nextBoolean() ? 1 : 2;
+        };
+        state.setLastPickupHalf(half);
         // Lejos de bordes y porterías: entre el 15% y el 85% del tablero.
-        double x = random.nextDouble(gameProps.boardWidth() * 0.15, gameProps.boardWidth() * 0.85);
+        double x = half == 1
+                ? random.nextDouble(gameProps.boardWidth() * 0.15, gameProps.boardWidth() * 0.50)
+                : random.nextDouble(gameProps.boardWidth() * 0.50, gameProps.boardWidth() * 0.85);
         double y = random.nextDouble(gameProps.boardHeight() * 0.15, gameProps.boardHeight() * 0.85);
         long activeFrom = now + props.blinkSeconds() * 1000L;
         state.setPickup(new PowerPickup(type, x, y, activeFrom,

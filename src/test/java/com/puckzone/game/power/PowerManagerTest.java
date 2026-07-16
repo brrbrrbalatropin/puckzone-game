@@ -67,6 +67,32 @@ class PowerManagerTest {
     }
 
     @Test
+    void trasUnPickupALaIzquierdaElSiguienteSaleALaDerecha() {
+        var state = playing();
+        state.setLastPickupHalf(1);
+
+        manager.tick(state, T0); // arma el reloj
+        manager.tick(state, T0 + 12_000);
+
+        assertNotNull(state.getPickup());
+        assertTrue(state.getPickup().x() >= 400, "debía alternar a la mitad derecha");
+        assertEquals(2, state.getLastPickupHalf());
+    }
+
+    @Test
+    void trasUnPickupALaDerechaElSiguienteSaleALaIzquierda() {
+        var state = playing();
+        state.setLastPickupHalf(2);
+
+        manager.tick(state, T0); // arma el reloj
+        manager.tick(state, T0 + 12_000);
+
+        assertNotNull(state.getPickup());
+        assertTrue(state.getPickup().x() <= 400, "debía alternar a la mitad izquierda");
+        assertEquals(1, state.getLastPickupHalf());
+    }
+
+    @Test
     void duranteElParpadeoNoSePuedeRecoger() {
         var state = playing();
         state.setPickup(new PowerPickup(PowerType.SHIELD, 60, 250, T0 + 1_000, T0 + 11_000));

@@ -11,7 +11,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 public record PowerProperties(
         // Cada cuánto aparece un pickup nuevo (contado desde que el
         // anterior se recogió o expiró).
-        @DefaultValue("12") int spawnIntervalSeconds,
+        @DefaultValue("7") int spawnIntervalSeconds,
         // Fase de parpadeo: visible pero aún no recogible.
         @DefaultValue("2") int blinkSeconds,
         // Si nadie lo recoge en este tiempo (tras activarse), desaparece.

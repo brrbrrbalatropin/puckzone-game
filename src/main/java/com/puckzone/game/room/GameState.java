@@ -84,6 +84,13 @@ public class GameState {
     private long lastPowerSpawnEpochMs;
 
     /**
+     * Mitad del tablero donde apareció el último pickup (1 izquierda,
+     * 2 derecha, 0 = aún ninguno). El spawner alterna mitades para que
+     * los poderes no se agrupen en un solo lado por puro azar.
+     */
+    private int lastPickupHalf;
+
+    /**
      * Pausa de anuncio: el saque no sale antes de este instante (el disco
      * espera quieto en el centro). El frontend muestra el banner de gol o
      * de arranque mientras no se cumpla.
