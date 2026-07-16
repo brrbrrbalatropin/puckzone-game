@@ -1,0 +1,12 @@
+# Datasource provisionado: Grafana arranca ya conectada al Prometheus interno.
+# El uid fijo "prometheus" es el que referencian los paneles del dashboard.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://puckzone-prometheus
+    isDefault: true
+    editable: false

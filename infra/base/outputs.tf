@@ -46,3 +46,19 @@ output "application_insights_connection_string" {
   value     = azurerm_application_insights.main.connection_string
   sensitive = true
 }
+
+output "metrics_token" {
+  description = "Token Bearer que exige /actuator/prometheus del gateway (PUCKZONE_METRICS_TOKEN); Prometheus lo manda en el scrape"
+  value       = random_password.metrics_token.result
+  sensitive   = true
+}
+
+output "grafana_url" {
+  value = "https://${azurerm_container_app.grafana.ingress[0].fqdn}"
+}
+
+output "grafana_admin_password" {
+  description = "Password del usuario admin de Grafana"
+  value       = random_password.grafana_admin.result
+  sensitive   = true
+}

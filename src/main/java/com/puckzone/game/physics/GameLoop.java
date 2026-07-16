@@ -7,6 +7,9 @@ import com.puckzone.game.room.GameEndService;
 import com.puckzone.game.room.GameRoomService;
 import com.puckzone.game.room.GameState;
 import com.puckzone.game.room.OpponentType;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -40,10 +43,16 @@ public class GameLoop {
     private ScheduledExecutorService executor;
     /** Último barrido de salas viejas; corre ~1 vez/s, no en cada tick. */
     private long lastCleanupEpochMs;
+    /**
+     * Duración de cada tick global: ES la métrica de escalabilidad del
+     * servicio (si el p99 se acerca al periodo del tick —16.6ms a 60Hz—
+     * el loop está saturado y las partidas bajan de frecuencia).
+     */
+    private final Timer tickTimer;
 
     public GameLoop(GameRoomService rooms, PhysicsEngine engine, BotBrain bot,
                     PowerManager powers, SimpMessagingTemplate messaging,
-                    GameProperties props, GameEndService gameEnd) {
+                    GameProperties props, GameEndService gameEnd, MeterRegistry metrics) {
         this.rooms = rooms;
         this.engine = engine;
         this.bot = bot;
@@ -51,6 +60,16 @@ public class GameLoop {
         this.messaging = messaging;
         this.props = props;
         this.gameEnd = gameEnd;
+        this.tickTimer = Timer.builder("puckzone.game.tick")
+                .description("Duración de un tick global del game loop")
+                .publishPercentiles(0.5, 0.95, 0.99)
+                .register(metrics);
+        Gauge.builder("puckzone.game.rooms.playing", rooms, r -> r.activeGames().size())
+                .description("Partidas avanzando en este tick")
+                .register(metrics);
+        Gauge.builder("puckzone.game.rooms.paused", rooms, r -> r.pausedGames().size())
+                .description("Partidas pausadas esperando reconexión")
+                .register(metrics);
     }
 
     @PostConstruct
@@ -72,6 +91,7 @@ public class GameLoop {
      * una sala no puede tumbar el loop de las demás.
      */
     private void tickAll() {
+        long tickStartedNanos = System.nanoTime();
         double dt = 1.0 / props.tickRate();
         long now = System.currentTimeMillis();
         for (GameState game : rooms.activeGames()) {
@@ -96,6 +116,7 @@ public class GameLoop {
         }
         closeExpiredPauses();
         cleanupOncePerSecond();
+        tickTimer.record(System.nanoTime() - tickStartedNanos, TimeUnit.NANOSECONDS);
     }
 
     /** Barre FINISHED retenidas y WAITING huérfanas (la limpieza no tiene afán). */

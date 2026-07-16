@@ -1,0 +1,46 @@
+# Config del Prometheus interno de PuckZone (Container App puckzone-prometheus).
+# Este archivo vive en el Azure Files "monitoring" (lo sube terraform) y la app
+# lo monta de solo lectura; para cambiarlo: editar aqui + terraform apply +
+# az containerapp revision restart -n puckzone-prometheus -g puckzone-rg.
+#
+# Los 4 servicios internos se raspan por su nombre de app (HTTP plano interno,
+# misma decision que la comunicacion servicio-a-servicio). El gateway es la
+# unica app publica: se raspa por su FQDN publico (HTTPS) y su
+# /actuator/prometheus exige el token estatico (MetricsTokenFilter); el token
+# llega como secret montado en /etc/prom-secrets/metrics-token.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "auth"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["puckzone-auth"]
+
+  - job_name: "matchmaking"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["puckzone-matchmaking"]
+
+  - job_name: "game"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["puckzone-game"]
+
+  - job_name: "ranking"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["puckzone-ranking"]
+
+  # OJO: el FQDN depende del environment; si el environment se recrea,
+  # actualizar el dominio aqui (terraform output container_app_environment_default_domain).
+  - job_name: "gateway"
+    metrics_path: /actuator/prometheus
+    scheme: https
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prom-secrets/metrics-token
+    static_configs:
+      - targets: ["puckzone-gateway.calmgrass-8fe4a577.eastus.azurecontainerapps.io"]

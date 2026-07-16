@@ -1,0 +1,15 @@
+# Carga los dashboards JSON del share (carpeta grafana/dashboards). El
+# almacenamiento de Grafana es efimero (sqlite del contenedor): TODO dashboard
+# que deba sobrevivir un restart se agrega como JSON en esa carpeta, no desde
+# la UI. updateIntervalSeconds relee el share sin reiniciar la app.
+apiVersion: 1
+
+providers:
+  - name: puckzone
+    folder: PuckZone
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 60
+    options:
+      path: /puckzone-cfg/grafana/dashboards
+      foldersFromFilesStructure: false
