@@ -129,6 +129,11 @@ resource "azurerm_container_app" "prometheus" {
   container_app_environment_id = azurerm_container_app_environment.main.id
   revision_mode                = "Single"
 
+  # Sin esto la app puede arrancar ANTES de que terraform suba la config al
+  # share y quedarse sin prometheus.yml (visto 2026-07-16: Grafana arrancó
+  # con el share vacío y quedó sin datasource hasta el revision restart).
+  depends_on = [azurerm_storage_share_file.prometheus_config]
+
   secret {
     name  = "metrics-token"
     value = random_password.metrics_token.result
@@ -198,6 +203,14 @@ resource "azurerm_container_app" "grafana" {
   resource_group_name          = azurerm_resource_group.main.name
   container_app_environment_id = azurerm_container_app_environment.main.id
   revision_mode                = "Single"
+
+  # El provisioning (datasource + dashboards) solo se lee al arranque: la app
+  # debe crearse DESPUÉS de que los archivos existan en el share.
+  depends_on = [
+    azurerm_storage_share_file.grafana_datasource,
+    azurerm_storage_share_file.grafana_dashboard_provider,
+    azurerm_storage_share_file.grafana_dashboard_puckzone,
+  ]
 
   secret {
     name  = "grafana-admin-password"
