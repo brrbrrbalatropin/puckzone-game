@@ -75,6 +75,7 @@ public class GameEndService {
         state.setGraceDeadlineEpochMs(0);
         state.setFinishedAtEpochMs(System.currentTimeMillis());
         rooms.snapshot(state);
+        rooms.clearActiveIndex(state);
         messaging.convertAndSend("/topic/game/" + state.getGameId(), state);
         if (report) {
             reportAsync(state);

@@ -61,7 +61,8 @@ public class GameRoomController {
                     .body(Map.of("error", "Token requerido o inválido"));
         }
         return roomService.activeGameOf(userId.get())
-                .<ResponseEntity<?>>map(state -> ResponseEntity.ok(ActiveGameResponse.of(state, userId.get())))
+                .<ResponseEntity<?>>map(active -> ResponseEntity.ok(
+                        ActiveGameResponse.of(active.state(), userId.get(), active.shard())))
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

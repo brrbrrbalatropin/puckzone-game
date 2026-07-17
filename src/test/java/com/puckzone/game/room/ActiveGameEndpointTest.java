@@ -63,6 +63,8 @@ class ActiveGameEndpointTest {
         assertTrue(response.body().contains(gameId), "el resumen no trae el gameId");
         assertTrue(response.body().contains("\"opponentUsername\":\"rival\""),
                 "el rival no viene desde la perspectiva del que pregunta");
+        assertTrue(response.body().contains("\"shard\":0"),
+                "el resumen debe decir en qué shard vive la sala");
     }
 
     private HttpResult get(String token) {

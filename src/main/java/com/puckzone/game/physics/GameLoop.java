@@ -108,6 +108,7 @@ public class GameLoop {
                 if (outcome == TickOutcome.FINISHED) {
                     log.info("Partida {} terminada {} - {}", game.getGameId(),
                             game.getScore1(), game.getScore2());
+                    rooms.clearActiveIndex(game);
                     gameEnd.reportAsync(game);
                 }
             } catch (RuntimeException e) {

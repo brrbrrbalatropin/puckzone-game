@@ -8,6 +8,8 @@ package com.puckzone.game.room;
  */
 public record ActiveGameResponse(
         String gameId,
+        /** Shard dueño de la sala: el cliente conecta su WS a /ws-{shard}. */
+        int shard,
         GameStatus status,
         OpponentType opponentType,
         String opponentUsername,
@@ -16,11 +18,12 @@ public record ActiveGameResponse(
         long graceDeadlineEpochMs
 ) {
 
-    public static ActiveGameResponse of(GameState state, String userId) {
+    public static ActiveGameResponse of(GameState state, String userId, int shard) {
         boolean isPlayer1 = state.getPlayer1().userId().equals(userId);
         Player opponent = isPlayer1 ? state.getPlayer2() : state.getPlayer1();
         return new ActiveGameResponse(
                 state.getGameId(),
+                shard,
                 state.getStatus(),
                 state.getOpponentType(),
                 opponent == null ? null : opponent.username(),

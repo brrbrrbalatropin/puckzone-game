@@ -26,7 +26,7 @@ class BotBrainTest {
     private static final double DT = 1.0 / 60;
 
     private final GameProperties props =
-            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 2, 60, 300);
+            new GameProperties(800, 500, 7, 60, 200, 15, 30, 900, 300, 30, 2, 60, 300, 0);
     private final BotProperties botProps =
             new BotProperties(4, 120, 220, 550, 350, 80, 30, 45, 6, 3);
 

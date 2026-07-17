@@ -77,6 +77,7 @@ public class GameRoomService {
                     .createdAtEpochMs(System.currentTimeMillis())
                     .build();
             snapshot(state);
+            indexActivePlayers(state);
             log.info("Sala {}{} creada: {} vs {}", id, friendly ? " (amistosa)" : "",
                     player1.username(),
                     opponentType == OpponentType.BOT ? "BOT" : player2.username());
@@ -102,16 +103,43 @@ public class GameRoomService {
                 .toList();
     }
 
+    /** Partida viva de un usuario y el shard que es su dueño. */
+    public record ActiveGame(GameState state, int shard) {
+    }
+
     /**
      * Partida viva del usuario, para que el lobby le ofrezca volver. Si
      * hubiera más de una (no debería: matchmaking empareja de a una), gana
      * la que ya arrancó sobre una WAITING huérfana.
+     *
+     * <p>Primero el mapa local (autoritativo y al tick para las salas de
+     * este shard); si aquí no hay nada, el índice de Redis resuelve las
+     * partidas que viven en OTROS shards — su snapshot se refresca en
+     * eventos (conexión, gol, pausa), suficiente para el resumen del
+     * lobby. Sin Redis solo se pierde la visibilidad remota.
      */
-    public Optional<GameState> activeGameOf(String userId) {
-        return rooms.values().stream()
+    public Optional<ActiveGame> activeGameOf(String userId) {
+        Optional<ActiveGame> local = rooms.values().stream()
                 .filter(state -> state.getStatus() != GameStatus.FINISHED)
                 .filter(state -> isPlayer(state, userId))
-                .max(Comparator.comparingLong(GameState::getStartedAtEpochMs));
+                .max(Comparator.comparingLong(GameState::getStartedAtEpochMs))
+                .map(state -> new ActiveGame(state, properties.shardId()));
+        if (local.isPresent()) {
+            return local;
+        }
+        try {
+            return repository.findActiveRef(userId)
+                    // Una ref de ESTE shard sin sala local es basura de una
+                    // partida ya barrida, no una partida viva.
+                    .filter(ref -> ref.shard() != properties.shardId())
+                    .flatMap(ref -> repository.find(ref.gameId())
+                            .filter(state -> state.getStatus() != GameStatus.FINISHED)
+                            .map(state -> new ActiveGame(state, ref.shard())));
+        } catch (RuntimeException e) {
+            log.warn("No se pudo consultar el índice de partida activa de {}: {}",
+                    userId, e.getMessage());
+            return Optional.empty();
+        }
     }
 
     /**
@@ -211,6 +239,9 @@ public class GameRoomService {
             };
             if (expired) {
                 log.info("Sala {} eliminada del mapa ({})", state.getGameId(), state.getStatus());
+                // Red de seguridad para las WAITING huérfanas (las FINISHED
+                // ya se dieron de baja del índice al cerrarse).
+                clearActiveIndex(state);
                 eventPublisher.publishEvent(new GameRoomRemovedEvent(state.getGameId()));
             }
             return expired;
@@ -223,6 +254,42 @@ public class GameRoomService {
             repository.save(state);
         } catch (RuntimeException e) {
             log.warn("No se pudo guardar el snapshot de {} en Redis: {}", state.getGameId(), e.getMessage());
+        }
+    }
+
+    /**
+     * Alta en el índice active-game:{userId} de los jugadores de la sala.
+     * Best-effort como el snapshot: sin Redis solo se pierde la
+     * reconexión entre shards, no la partida.
+     */
+    private void indexActivePlayers(GameState state) {
+        var ref = new ActiveGameRef(state.getGameId(), properties.shardId());
+        try {
+            repository.saveActiveRef(state.getPlayer1().userId(), ref);
+            if (state.getPlayer2() != null) {
+                repository.saveActiveRef(state.getPlayer2().userId(), ref);
+            }
+        } catch (RuntimeException e) {
+            log.warn("No se pudo indexar la partida activa {} en Redis: {}",
+                    state.getGameId(), e.getMessage());
+        }
+    }
+
+    /**
+     * Baja del índice cuando la sala muere (fin de partida o barrido de
+     * huérfanas), para que el lobby no ofrezca volver a una partida que
+     * ya no existe. Best-effort: si Redis falla, el TTL de la referencia
+     * la limpia solo.
+     */
+    public void clearActiveIndex(GameState state) {
+        try {
+            repository.deleteActiveRef(state.getPlayer1().userId(), state.getGameId());
+            if (state.getPlayer2() != null) {
+                repository.deleteActiveRef(state.getPlayer2().userId(), state.getGameId());
+            }
+        } catch (RuntimeException e) {
+            log.warn("No se pudo limpiar el índice de partida activa de {}: {}",
+                    state.getGameId(), e.getMessage());
         }
     }
 }

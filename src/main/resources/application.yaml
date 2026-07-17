@@ -45,6 +45,8 @@ puckzone:
     allowed-origins: http://localhost:5173,http://localhost:8080
 
   game:
+    # Qué shard es esta instancia (puckzone-game=0, puckzone-game-1=1, ...).
+    shard-id: ${PUCKZONE_SHARD_ID:0}
     board-width: 800
     board-height: 500
     goals-to-win: 7

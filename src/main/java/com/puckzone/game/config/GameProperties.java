@@ -29,6 +29,11 @@ public record GameProperties(
         // la elimine. Redis conserva el snapshot con su propio TTL.
         @DefaultValue("60") int finishedRetentionSeconds,
         // Una WAITING más vieja que esto es huérfana (alguien nunca entró).
-        @DefaultValue("300") int waitingTimeoutSeconds
+        @DefaultValue("300") int waitingTimeoutSeconds,
+        // Identidad de esta instancia en el sharding por partida: matchmaking
+        // asigna cada sala a un shard y el cliente conecta su WS al shard
+        // dueño. Viaja en el índice active-game:{userId} de Redis para que
+        // cualquier shard pueda decirle al lobby a dónde reconectarse.
+        @DefaultValue("0") int shardId
 ) {
 }
