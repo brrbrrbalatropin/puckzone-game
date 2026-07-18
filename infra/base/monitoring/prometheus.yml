@@ -24,10 +24,12 @@ scrape_configs:
     static_configs:
       - targets: ["puckzone-matchmaking"]
 
+  # Un target por shard de game (sharding por partida): el label instance
+  # distingue puckzone-game (shard 0) de puckzone-game-1.
   - job_name: "game"
     metrics_path: /actuator/prometheus
     static_configs:
-      - targets: ["puckzone-game"]
+      - targets: ["puckzone-game", "puckzone-game-1"]
 
   - job_name: "ranking"
     metrics_path: /actuator/prometheus

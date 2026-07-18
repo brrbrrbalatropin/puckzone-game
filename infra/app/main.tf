@@ -1,13 +1,32 @@
+# Sharding por partida: cada Container App (shard) es duena absoluta de sus
+# salas — matchmaking asigna cada partida a un shard y el cliente conecta su
+# WS al shard dueno via gateway (/ws-{shard}). Escalar game = agregar shards
+# aqui (y en GAME_SHARD_URLS de matchmaking + rutas del gateway), NO subir
+# replicas. El shard 0 conserva el nombre historico puckzone-game para no
+# recrear la app ni tocar las URLs internas que ya la referencian.
+locals {
+  game_shards = {
+    "0" = "puckzone-game"
+    "1" = "puckzone-game-1"
+  }
+}
+
+# El puckzone-game original ahora es el shard 0 del for_each.
+moved {
+  from = azurerm_container_app.game
+  to   = azurerm_container_app.game["0"]
+}
+
 resource "azurerm_container_app" "game" {
-  name                         = "puckzone-game"
+  for_each                     = local.game_shards
+  name                         = each.value
   resource_group_name          = data.terraform_remote_state.base.outputs.resource_group_name
   container_app_environment_id = data.terraform_remote_state.base.outputs.container_app_environment_id
   revision_mode                = "Single"
 
   template {
-    # Game guarda las salas en memoria y las sesiones STOMP viven en la
-    # instancia: con mas de 1 replica los jugadores de una misma partida
-    # podrian caer en instancias distintas. NO subir hasta resolver eso.
+    # Las salas y las sesiones STOMP viven en la memoria DE ESTE shard: la
+    # replica unica por shard es de diseno (escalar = mas shards, arriba).
     min_replicas = 1
     max_replicas = 1
 
@@ -66,6 +85,14 @@ resource "azurerm_container_app" "game" {
       env {
         name  = "PUCKZONE_WEBSOCKET_ALLOWEDORIGINS"
         value = "https://puckzone-frontend.calmgrass-8fe4a577.eastus.azurecontainerapps.io,http://localhost:5173,http://localhost:8080"
+      }
+      # Identidad del shard (0 = puckzone-game, 1 = puckzone-game-1): viaja
+      # en el indice active-game:{userId} de Redis para la reconexion.
+      # Al final de la lista: el provider compara las env por posicion y
+      # insertarla en otro lado ensucia el diff de todas las demas.
+      env {
+        name  = "PUCKZONE_SHARD_ID"
+        value = each.key
       }
 
       # Con JPA el arranque pasó de ~25s a ~40s: sin initial_delay la

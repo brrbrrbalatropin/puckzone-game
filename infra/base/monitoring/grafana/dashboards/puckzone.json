@@ -94,7 +94,7 @@
       "targets": [
         {
           "expr": "puckzone_game_tick_seconds{quantile=~\"0.5|0.95|0.99\"} * 1000",
-          "legendFormat": "p{{quantile}}",
+          "legendFormat": "{{instance}} p{{quantile}}",
           "refId": "A"
         }
       ],
@@ -115,8 +115,8 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
       "targets": [
-        { "expr": "puckzone_game_rooms_playing", "legendFormat": "jugando", "refId": "A" },
-        { "expr": "puckzone_game_rooms_paused", "legendFormat": "pausadas (gracia)", "refId": "B" }
+        { "expr": "puckzone_game_rooms_playing", "legendFormat": "{{instance}} jugando", "refId": "A" },
+        { "expr": "puckzone_game_rooms_paused", "legendFormat": "{{instance}} pausadas (gracia)", "refId": "B" }
       ],
       "fieldConfig": { "defaults": { "min": 0, "custom": { "fillOpacity": 20 } }, "overrides": [] }
     },

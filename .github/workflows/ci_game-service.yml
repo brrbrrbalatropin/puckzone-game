@@ -137,9 +137,13 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Update Container App image
+      # Ambos shards corren la MISMA imagen (sharding por partida: la lista
+      # de shards vive en infra/app/main.tf y aqui debe coincidir).
+      - name: Update Container App image (todos los shards)
         run: |
-          az containerapp update \
-            --name puckzone-game \
-            --resource-group puckzone-rg \
-            --image ${{ env.IMAGE_NAME }}:${GITHUB_SHA::7}
+          for app in puckzone-game puckzone-game-1; do
+            az containerapp update \
+              --name "$app" \
+              --resource-group puckzone-rg \
+              --image ${{ env.IMAGE_NAME }}:${GITHUB_SHA::7}
+          done
