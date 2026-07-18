@@ -40,7 +40,7 @@ public record BotProfile(
      */
     public static int levelForElo(Integer elo) {
         int rating = elo == null ? 1200 : elo;
-        return Math.clamp(1 + Math.max(0, (rating - 750) / 150), 1, 9);
+        return Math.clamp(1L + Math.max(0, (rating - 750) / 150), 1, 9);
     }
 
     public static BotProfile forLevel(int level, BotProperties props) {

@@ -154,7 +154,7 @@ public class BotBrain {
     }
 
     private double maxY() {
-        return props.boardHeight() - props.puckRadius();
+        return (double) props.boardHeight() - props.puckRadius();
     }
 
     private static double stepTowards(double current, double target, double maxStep) {
