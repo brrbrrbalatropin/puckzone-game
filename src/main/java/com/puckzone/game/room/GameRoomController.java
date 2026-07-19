@@ -30,7 +30,7 @@ public class GameRoomController {
     }
 
     @PostMapping("/games")
-    public ResponseEntity<?> createGame(@RequestBody CreateGameRequest request) {
+    public ResponseEntity<Object> createGame(@RequestBody CreateGameRequest request) {
         if (request.matchId() == null || request.matchId().isBlank()
                 || request.player1() == null || request.opponentType() == null
                 || (request.opponentType() == OpponentType.HUMAN && request.player2() == null)) {
@@ -50,7 +50,7 @@ public class GameRoomController {
      * 200 con el resumen si hay partida, 204 si no, 401 sin token válido.
      */
     @GetMapping("/api/game/active")
-    public ResponseEntity<?> activeGame(
+    public ResponseEntity<Object> activeGame(
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         String token = authorization != null && authorization.startsWith("Bearer ")
                 ? authorization.substring("Bearer ".length())
@@ -61,7 +61,7 @@ public class GameRoomController {
                     .body(Map.of("error", "Token requerido o inválido"));
         }
         return roomService.activeGameOf(userId.get())
-                .<ResponseEntity<?>>map(active -> ResponseEntity.ok(
+                .<ResponseEntity<Object>>map(active -> ResponseEntity.ok(
                         ActiveGameResponse.of(active.state(), userId.get(), active.shard())))
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }

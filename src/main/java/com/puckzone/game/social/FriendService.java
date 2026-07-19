@@ -52,7 +52,9 @@ public class FriendService {
             }
             if (current.getAddresseeId().equals(requesterId)) {
                 // El otro ya me había invitado: invitar de vuelta es aceptar.
-                accept(requesterId, current.getId());
+                // Directo a la mutación (no via accept()): la auto-invocación
+                // de un método @Transactional no pasa por el proxy de Spring.
+                acceptPending(current, requesterId);
                 return toRequestView(current, requesterId);
             }
             throw new SocialException(HttpStatus.CONFLICT, "Ya le enviaste una solicitud a ese jugador");
@@ -77,6 +79,11 @@ public class FriendService {
         if (friendship.getStatus() != FriendshipStatus.PENDING) {
             throw new SocialException(HttpStatus.CONFLICT, "La solicitud ya fue respondida");
         }
+        return acceptPending(friendship, userId);
+    }
+
+    /** Mutación compartida entre accept() y la aceptación por solicitud cruzada. */
+    private FriendView acceptPending(Friendship friendship, String userId) {
         friendship.setStatus(FriendshipStatus.ACCEPTED);
         friendship.setRespondedAtEpochMs(System.currentTimeMillis());
         friendships.save(friendship);
@@ -102,7 +109,7 @@ public class FriendService {
                 .isPresent();
     }
 
-    /** Todo el panel izquierdo del chat en una llamada. */
+    /** El panel izquierdo completo del chat en una sola llamada. */
     @Transactional(readOnly = true)
     public Overview overviewOf(String userId) {
         List<FriendView> friends = friendships.findAcceptedOf(userId).stream()

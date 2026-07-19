@@ -32,6 +32,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -204,11 +205,9 @@ class GameSocketIntegrationTest {
         assertNotNull(awaitState(state -> state.getStatus() == GameStatus.FINISHED));
 
         // Con retención de 1s (properties del test), el loop la barre solo
-        long deadline = System.currentTimeMillis() + 5_000;
-        while (System.currentTimeMillis() < deadline && rooms.find(gameId).isPresent()) {
-            Thread.sleep(100);
-        }
-        assertTrue(rooms.find(gameId).isEmpty(), "la sala FINISHED no se barrió del mapa");
+        await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertTrue(rooms.find(gameId).isEmpty(),
+                        "la sala FINISHED no se barrió del mapa"));
     }
 
     @Test

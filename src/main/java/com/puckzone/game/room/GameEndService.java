@@ -49,9 +49,12 @@ public class GameEndService {
 
     /** Cierra la partida a favor del rival del que se rinde. */
     public void finishBySurrender(GameState state, String surrenderedUserId) {
-        String winnerId = state.getPlayer1().userId().equals(surrenderedUserId)
-                ? state.getPlayer2() == null ? null : state.getPlayer2().userId()
-                : state.getPlayer1().userId();
+        String winnerId;
+        if (state.getPlayer1().userId().equals(surrenderedUserId)) {
+            winnerId = state.getPlayer2() == null ? null : state.getPlayer2().userId();
+        } else {
+            winnerId = state.getPlayer1().userId();
+        }
         log.info("Sala {} cerrada: {} se rindió", state.getGameId(), surrenderedUserId);
         finish(state, winnerId, FinishReason.SURRENDER, true);
     }

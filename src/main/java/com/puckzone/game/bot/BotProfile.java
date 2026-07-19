@@ -45,9 +45,14 @@ public record BotProfile(
 
     public static BotProfile forLevel(int level, BotProperties props) {
         int lvl = Math.clamp(level, 1, 9);
-        PredictionTier tier = lvl <= 4 ? PredictionTier.CHASE
-                : lvl <= 6 ? PredictionTier.LINEAR
-                : PredictionTier.REFLECT;
+        PredictionTier tier;
+        if (lvl <= 4) {
+            tier = PredictionTier.CHASE;
+        } else if (lvl <= 6) {
+            tier = PredictionTier.LINEAR;
+        } else {
+            tier = PredictionTier.REFLECT;
+        }
         return new BotProfile(
                 lvl,
                 Math.round(ramp(lvl, props.level1ReactionMillis(),

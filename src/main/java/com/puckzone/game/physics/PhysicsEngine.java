@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Motor de física 2D del air hockey. Stateless: todo el estado vive en el
+ * Motor de física 2D del air hockey. Stateless: el estado entero vive en el
  * {@link GameState} que recibe; por eso un solo engine sirve a todas las
  * partidas a la vez.
  *
@@ -75,8 +75,10 @@ public class PhysicsEngine {
                 return TickOutcome.NONE;
             }
             int direction = state.getPendingServeDirection();
-            serve(state, direction != 0 ? direction
-                    : ThreadLocalRandom.current().nextBoolean() ? 1 : -1);
+            if (direction == 0) {
+                direction = ThreadLocalRandom.current().nextBoolean() ? 1 : -1;
+            }
+            serve(state, direction);
             state.setPendingServeDirection(0);
         }
 
@@ -105,12 +107,12 @@ public class PhysicsEngine {
     public void movePaddle(GameState state, int playerNumber, double x, double y) {
         double r = props.paddleRadius();
         double half = props.boardWidth() / 2.0;
-        double clampedY = clamp(y, r, props.boardHeight() - r);
+        double clampedY = Math.clamp(y, r, props.boardHeight() - r);
         if (playerNumber == 1) {
-            state.setPaddle1X(clamp(x, r, half - r));
+            state.setPaddle1X(Math.clamp(x, r, half - r));
             state.setPaddle1Y(clampedY);
         } else {
-            state.setPaddle2X(clamp(x, half + r, props.boardWidth() - r));
+            state.setPaddle2X(Math.clamp(x, half + r, props.boardWidth() - r));
             state.setPaddle2Y(clampedY);
         }
     }
@@ -167,9 +169,11 @@ public class PhysicsEngine {
         if (state.getScore1() >= props.goalsToWin() || state.getScore2() >= props.goalsToWin()) {
             state.setStatus(GameStatus.FINISHED);
             state.setFinishReason(FinishReason.SCORE);
-            state.setWinnerId(state.getScore1() > state.getScore2()
-                    ? state.getPlayer1().userId()
-                    : state.getPlayer2() == null ? null : state.getPlayer2().userId());
+            if (state.getScore1() > state.getScore2()) {
+                state.setWinnerId(state.getPlayer1().userId());
+            } else {
+                state.setWinnerId(state.getPlayer2() == null ? null : state.getPlayer2().userId());
+            }
             state.setFinishedAtEpochMs(System.currentTimeMillis());
             return TickOutcome.FINISHED;
         }
@@ -294,7 +298,7 @@ public class PhysicsEngine {
     }
 
     /**
-     * Un contacto revela el disco: del todo si no hay fantasma activo, o
+     * Un contacto revela el disco: por completo si no hay fantasma activo, o
      * como un destello brevísimo que insinúa la dirección mientras el
      * fantasma dure (el PowerManager lo vuelve a ocultar al expirar el
      * destello).
@@ -316,29 +320,32 @@ public class PhysicsEngine {
     /** Rebote contra los obstáculos activos: círculos estáticos en el tablero. */
     private void collideWithObstacles(GameState state) {
         for (ActiveEffect effect : effects(state)) {
-            if (effect.type() != PowerType.OBSTACLE) {
-                continue;
+            if (effect.type() == PowerType.OBSTACLE) {
+                bounceOffObstacle(state, effect);
             }
-            double dx = state.getPuckX() - effect.x();
-            double dy = state.getPuckY() - effect.y();
-            double dist = Math.hypot(dx, dy);
-            double minDist = props.puckRadius() + effect.radius();
-            if (dist >= minDist) {
-                continue;
-            }
-            double nx = dist == 0 ? 1 : dx / dist;
-            double ny = dist == 0 ? 0 : dy / dist;
-            state.setPuckX(effect.x() + nx * minDist);
-            state.setPuckY(effect.y() + ny * minDist);
-            // Refleja la velocidad sobre la normal solo si va hacia adentro.
-            double dot = state.getPuckVx() * nx + state.getPuckVy() * ny;
-            if (dot < 0) {
-                state.setPuckVx(state.getPuckVx() - 2 * dot * nx);
-                state.setPuckVy(state.getPuckVy() - 2 * dot * ny);
-            }
-            revealPuck(state);
-            keepPuckInsideBoard(state);
         }
+    }
+
+    private void bounceOffObstacle(GameState state, ActiveEffect effect) {
+        double dx = state.getPuckX() - effect.x();
+        double dy = state.getPuckY() - effect.y();
+        double dist = Math.hypot(dx, dy);
+        double minDist = props.puckRadius() + effect.radius();
+        if (dist >= minDist) {
+            return;
+        }
+        double nx = dist == 0 ? 1 : dx / dist;
+        double ny = dist == 0 ? 0 : dy / dist;
+        state.setPuckX(effect.x() + nx * minDist);
+        state.setPuckY(effect.y() + ny * minDist);
+        // Refleja la velocidad sobre la normal solo si va hacia adentro.
+        double dot = state.getPuckVx() * nx + state.getPuckVy() * ny;
+        if (dot < 0) {
+            state.setPuckVx(state.getPuckVx() - 2 * dot * nx);
+            state.setPuckVy(state.getPuckVy() - 2 * dot * ny);
+        }
+        revealPuck(state);
+        keepPuckInsideBoard(state);
     }
 
     /** Zonas rápidas/lentas: modulan la velocidad mientras el disco esté adentro. */
@@ -430,7 +437,4 @@ public class PhysicsEngine {
         return false;
     }
 
-    private static double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
 }

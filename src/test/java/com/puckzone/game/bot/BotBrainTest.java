@@ -108,7 +108,7 @@ class BotBrainTest {
         state.setPuckVx(100); // hacia el bot por el centro
         actTimes(state, 5);
 
-        // El disco se vuelve fantasma y se teletransporta abajo del todo.
+        // El disco se vuelve fantasma y se teletransporta hasta abajo.
         state.setPuckVisible(false);
         state.setPuckY(470);
         now[0] += 500; // mucho más que sus 50ms de reacción

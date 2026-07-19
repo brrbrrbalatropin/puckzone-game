@@ -12,7 +12,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Ciclo de vida de los poderes de una partida; lo invoca el game loop en
- * cada tick, solo para salas en PLAYING. Stateless como el motor: todo
+ * cada tick, solo para salas en PLAYING. Stateless como el motor: cada dato
  * vive en el GameState. Hace tres cosas: vence efectos (restaurando lo que
  * el efecto tocó), hace aparecer pickups con su fase de parpadeo, y
  * resuelve la recogida por contacto de paleta aplicando el efecto de
