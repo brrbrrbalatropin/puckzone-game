@@ -31,4 +31,9 @@ resource "azurerm_container_app_environment" "main" {
   location                   = azurerm_resource_group.main.location
   resource_group_name        = azurerm_resource_group.main.name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+
+  # Cifra el trafico entre apps del environment (peer authentication mTLS de
+  # ACA): el HTTP plano interno (http://puckzone-<svc>) viaja cifrado por
+  # debajo sin que los servicios cambien nada.
+  mutual_tls_enabled = true
 }
