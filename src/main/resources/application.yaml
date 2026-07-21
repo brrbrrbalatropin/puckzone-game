@@ -15,6 +15,12 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/game_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    # Ver la nota extensa en puckzone-ranking. Aqui JPA solo sirve a lo social
+    # (amigos, DMs, directorio), nunca al game loop, asi que 5 sobran; cada
+    # shard es una app aparte y por tanto un pool aparte contra el mismo B1ms.
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:5}
+      minimum-idle: ${DB_POOL_IDLE:2}
   jpa:
     hibernate:
       ddl-auto: update
